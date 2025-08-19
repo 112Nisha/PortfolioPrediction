@@ -50,6 +50,3 @@ PortfolioPrediction/
 └── templates
     └── index.html
 ```
-
-## License
-MIT
