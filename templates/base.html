@@ -3,22 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <title>{% block title %}PortfolioPrediction{% endblock %}</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <header>
-        <img src="/static/logo.jpeg" alt="IIIT Hyderabad Logo" class="logo">
-        <nav>
-            <a href="/">Home</a>
-            <a href="/about">About</a>
-            <a href="/info">Info</a>
-        </nav>
+    <header class="iiit-header">
+        <div class="header-content">
+            <img src="/static/logo.jpeg" alt="IIIT Hyderabad Logo" class="logo">
+            <div class="site-title">
+                <span>PortfolioPrediction</span>
+                <span class="subtitle">IIIT Hyderabad</span>
+            </div>
+            <nav>
+                <a href="/">Home</a>
+                <a href="/about">About</a>
+                <a href="/info">Info</a>
+            </nav>
+        </div>
     </header>
     <main>
         {% block content %}{% endblock %}
     </main>
-    <footer>
-        <p>&copy; 2025 PortfolioPrediction | IIIT | Placeholder Footer Text</p>
+    <footer class="iiit-footer">
+        <div class="footer-content">
+            <span>&copy; 2025 PortfolioPrediction | IIIT Hyderabad</span>
+            <span class="footer-links">
+                <a href="https://www.iiit.ac.in/" target="_blank">IIIT Hyderabad</a> |
+                <a href="/about">About</a> |
+                <a href="/info">Info</a>
+            </span>
+        </div>
     </footer>
 </body>
 </html>

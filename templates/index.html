@@ -20,7 +20,11 @@
         <li>Suggestion: {{ stats.suggestion }}</li>
     </ul>
     <h2>Mean-Variance Frontier</h2>
-    <img src="{{ graph_url }}" alt="Mean-Variance Frontier">
+    {% if graph_url %}
+        <img src="{{ graph_url }}" alt="Mean-Variance Frontier" class="frontier-graph">
+    {% else %}
+        <p>No graph generated yet.</p>
+    {% endif %}
 {% endif %}
 <script>
     function addStock() {

@@ -11,7 +11,9 @@ def index():
         weights = request.form.getlist('weight')
         # Placeholder: call prediction and graph logic
         stats = compute_portfolio_stats(stocks, weights)
-        graph_url = generate_frontier_graph(stocks, weights)
+        # Assume graph.py generates a file in static/ named portfolio_frontier.png
+        generate_frontier_graph(stocks, weights)  # This function saves the image
+        graph_url = '/static/portfolio_frontier.png'  # Consistent naming convention
         return render_template('index.html', stats=stats, graph_url=graph_url, stocks=stocks, weights=weights)
     return render_template('index.html')
 
