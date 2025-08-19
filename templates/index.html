@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Portfolio Mean-Variance Frontier</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h1>Portfolio Mean-Variance Frontier</h1>
+    <form method="POST">
+        <div id="stocks">
+            <div>
+                <input type="text" name="stock" placeholder="Stock Symbol">
+                <input type="number" name="weight" placeholder="Weight" step="0.01" min="0" max="1">
+            </div>
+        </div>
+        <button type="button" onclick="addStock()">Add Another Stock</button>
+        <button type="submit">Submit</button>
+    </form>
+    {% if stats %}
+        <h2>Portfolio Stats</h2>
+        <ul>
+            <li>Mean: {{ stats.mean }}</li>
+            <li>Variance: {{ stats.variance }}</li>
+            <li>Suggestion: {{ stats.suggestion }}</li>
+        </ul>
+        <h2>Mean-Variance Frontier</h2>
+        <img src="{{ graph_url }}" alt="Mean-Variance Frontier">
+    {% endif %}
+    <script>
+        function addStock() {
+            var div = document.createElement('div');
+            div.innerHTML = '<input type="text" name="stock" placeholder="Stock Symbol"> <input type="number" name="weight" placeholder="Weight" step="0.01" min="0" max="1">';
+            document.getElementById('stocks').appendChild(div);
+        }
+    </script>
+</body>
+</html>

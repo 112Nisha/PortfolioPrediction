@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Portfolio Mean-Variance Frontier</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h1>Portfolio Mean-Variance Frontier</h1>
+    <form method="POST">
+        <div id="stocks">
+            <div>
+                <input type="text" name="stock" placeholder="Stock Symbol">
+                <input type="number" name="weight" placeholder="Weight" step="0.01" min="0" max="1">
+            </div>
+        </div>
+        <button type="button" onclick="addStock()">Add Another Stock</button>
+        <button type="submit">Submit</button>
+    </form>
+    
+    <script>
+        function addStock() {
+            var div = document.createElement('div');
+            div.innerHTML = '<input type="text" name="stock" placeholder="Stock Symbol"> <input type="number" name="weight" placeholder="Weight" step="0.01" min="0" max="1">';
+            document.getElementById('stocks').appendChild(div);
+        }
+    </script>
+</body>
+</html>
