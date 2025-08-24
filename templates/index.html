@@ -5,23 +5,43 @@
 <form method="POST">
     <div id="stocks">
         <div>
-            <input type="text" name="stock" placeholder="Stock Symbol">
-            <input type="number" name="weight" placeholder="Weight" step="0.01" min="0" max="1">
+            <label for="stock1">Stock 1:</label>
+            <select name="stock" id="stock1">
+                <option value="CIPLA" {% if stocks and stocks[0]=='CIPLA' %}selected{% endif %}>CIPLA</option>
+                <option value="HDFCBANK" {% if stocks and stocks[0]=='HDFCBANK' %}selected{% endif %}>HDFCBANK</option>
+                <option value="INFY" {% if stocks and stocks[0]=='INFY' %}selected{% endif %}>INFY</option>
+                <option value="LNT" {% if stocks and stocks[0]=='LNT' %}selected{% endif %}>LNT</option>
+                <option value="NSEI" {% if stocks and stocks[0]=='NSEI' %}selected{% endif %}>NSEI</option>
+                <option value="SBIN" {% if stocks and stocks[0]=='SBIN' %}selected{% endif %}>SBIN</option>
+                <option value="TCS" {% if stocks and stocks[0]=='TCS' %}selected{% endif %}>TCS</option>
+            </select>
+            <input type="number" name="weight" placeholder="Amount (₹)" step="0.01" min="0" value="{% if weights and weights[0] %}{{ weights[0] }}{% endif %}">
+        </div>
+        <div>
+            <label for="stock2">Stock 2:</label>
+            <select name="stock" id="stock2">
+                <option value="CIPLA" {% if stocks and stocks[1]=='CIPLA' %}selected{% endif %}>CIPLA</option>
+                <option value="HDFCBANK" {% if stocks and stocks[1]=='HDFCBANK' %}selected{% endif %}>HDFCBANK</option>
+                <option value="INFY" {% if stocks and stocks[1]=='INFY' %}selected{% endif %}>INFY</option>
+                <option value="LNT" {% if stocks and stocks[1]=='LNT' %}selected{% endif %}>LNT</option>
+                <option value="NSEI" {% if stocks and stocks[1]=='NSEI' %}selected{% endif %}>NSEI</option>
+                <option value="SBIN" {% if stocks and stocks[1]=='SBIN' %}selected{% endif %}>SBIN</option>
+                <option value="TCS" {% if stocks and stocks[1]=='TCS' %}selected{% endif %}>TCS</option>
+            </select>
+            <input type="number" name="weight" placeholder="Amount (₹)" step="0.01" min="0" value="{% if weights and weights[1] %}{{ weights[1] }}{% endif %}">
         </div>
     </div>
-    <button type="button" onclick="addStock()">Add Another Stock</button>
     <button type="submit">Submit</button>
 </form>
 {% if stats %}
     <h2>Portfolio Stats</h2>
     <ul>
-        <li>Mean: {{ stats.mean }}</li>
-        <li>Variance: {{ stats.variance }}</li>
-        <li>Suggestion: {{ stats.suggestion }}</li>
+        <li>Expected Return (₹): {{ stats.mean }}</li>
+        <li>Risk (₹): {{ stats.variance }}</li>
     </ul>
     <h2>Mean-Variance Frontier</h2>
     {% if graph_url %}
-        <img src="{{ graph_url }}" alt="Mean-Variance Frontier" class="frontier-graph">
+        <iframe src="{{ graph_url }}" width="100%" height="500" style="border:none;"></iframe>
     {% else %}
         <p>No graph generated yet.</p>
     {% endif %}

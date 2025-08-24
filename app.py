@@ -9,14 +9,15 @@ def index():
     if request.method == 'POST':
         stocks = request.form.getlist('stock')
         weights = request.form.getlist('weight')
-        # Placeholder: call prediction and graph logic
+        # Only allow two stocks
+        if len(stocks) != 2 or len(weights) != 2:
+            error = "Please select two stocks and enter their weights."
+            return render_template('index.html', error=error)
         stats = compute_portfolio_stats(stocks, weights)
-        # Assume graph.py generates a file in static/ named portfolio_frontier.png
         generate_frontier_graph(stocks, weights)  # This function saves the image
-        graph_url = '/static/portfolio_frontier.png'  # Consistent naming convention
+        graph_url = '/static/portfolio_frontier.png'
         return render_template('index.html', stats=stats, graph_url=graph_url, stocks=stocks, weights=weights)
     return render_template('index.html')
-
 
 @app.route('/about')
 def about():
