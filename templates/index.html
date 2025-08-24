@@ -40,8 +40,8 @@
         <li>Risk (₹): {{ stats.variance }}</li>
     </ul>
     <h2>Mean-Variance Frontier</h2>
-    {% if graph_url %}
-        <iframe src="{{ graph_url }}" width="100%" height="500" style="border:none;"></iframe>
+    {% if graph_html %}
+        {{ graph_html|safe }}
     {% else %}
         <p>No graph generated yet.</p>
     {% endif %}
