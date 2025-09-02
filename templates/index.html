@@ -1,56 +1,117 @@
 {% extends 'base.html' %}
 {% block title %}Home - PortfolioPrediction{% endblock %}
 {% block content %}
-<h1>Portfolio Mean-Variance Frontier</h1>
-<form method="POST">
-    <div id="stocks">
-        <div>
-            <label for="stock1">Stock 1:</label>
-            <select name="stock" id="stock1">
-                <option value="CIPLA" {% if stocks and stocks[0]=='CIPLA' %}selected{% endif %}>CIPLA</option>
-                <option value="HDFCBANK" {% if stocks and stocks[0]=='HDFCBANK' %}selected{% endif %}>HDFCBANK</option>
-                <option value="INFY" {% if stocks and stocks[0]=='INFY' %}selected{% endif %}>INFY</option>
-                <option value="LNT" {% if stocks and stocks[0]=='LNT' %}selected{% endif %}>LNT</option>
-                <option value="NSEI" {% if stocks and stocks[0]=='NSEI' %}selected{% endif %}>NSEI</option>
-                <option value="SBIN" {% if stocks and stocks[0]=='SBIN' %}selected{% endif %}>SBIN</option>
-                <option value="TCS" {% if stocks and stocks[0]=='TCS' %}selected{% endif %}>TCS</option>
-            </select>
-            <input type="number" name="weight" placeholder="Amount (₹)" step="0.01" min="0" value="{% if weights and weights[0] %}{{ weights[0] }}{% endif %}">
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<div class="container my-4">
+    <h1 class="mb-4 text-primary">Portfolio Mean-Variance Frontier</h1>
+
+    <form method="POST" class="p-4 bg-white rounded shadow-sm mb-4">
+        <div id="stocks-container">
+            {% if stocks and weights %}
+                {% for i in range(stocks|length) %}
+                    <div class="stock-input-group mb-3">
+                        <label for="stock{{ i }}" class="form-label visually-hidden">Stock {{ i+1 }}:</label>
+                        <input type="text" name="stock" id="stock{{ i }}" placeholder="Stock Symbol (e.g., CIPLA)" class="form-control" value="{{ stocks[i] }}">
+                        <input type="number" name="weight" placeholder="Amount (%)" step="0.01" min="0" class="form-control" value="{{ weights[i] }}">
+                        <button type="button" class="btn btn-danger remove-stock-btn">Remove</button>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="stock-input-group mb-3">
+                    <label for="stock0" class="form-label visually-hidden">Stock 1:</label>
+                    <input type="text" name="stock" id="stock0" placeholder="Stock Symbol (e.g., CIPLA)" class="form-control">
+                    <input type="number" name="weight" placeholder="Amount (%)" step="0.01" min="0" class="form-control">
+                    <button type="button" class="btn btn-danger remove-stock-btn">Remove</button>
+                </div>
+                <div class="stock-input-group mb-3">
+                    <label for="stock1" class="form-label visually-hidden">Stock 2:</label>
+                    <input type="text" name="stock" id="stock1" placeholder="Stock Symbol (e.g., HDFCBANK)" class="form-control">
+                    <input type="number" name="weight" placeholder="Amount (%)" step="0.01" min="0" class="form-control">
+                    <button type="button" class="btn btn-danger remove-stock-btn">Remove</button>
+                </div>
+            {% endif %}
         </div>
-        <div>
-            <label for="stock2">Stock 2:</label>
-            <select name="stock" id="stock2">
-                <option value="CIPLA" {% if stocks and stocks[1]=='CIPLA' %}selected{% endif %}>CIPLA</option>
-                <option value="HDFCBANK" {% if stocks and stocks[1]=='HDFCBANK' %}selected{% endif %}>HDFCBANK</option>
-                <option value="INFY" {% if stocks and stocks[1]=='INFY' %}selected{% endif %}>INFY</option>
-                <option value="LNT" {% if stocks and stocks[1]=='LNT' %}selected{% endif %}>LNT</option>
-                <option value="NSEI" {% if stocks and stocks[1]=='NSEI' %}selected{% endif %}>NSEI</option>
-                <option value="SBIN" {% if stocks and stocks[1]=='SBIN' %}selected{% endif %}>SBIN</option>
-                <option value="TCS" {% if stocks and stocks[1]=='TCS' %}selected{% endif %}>TCS</option>
-            </select>
-            <input type="number" name="weight" placeholder="Amount (₹)" step="0.01" min="0" value="{% if weights and weights[1] %}{{ weights[1] }}{% endif %}">
+        <div class="d-flex justify-content-start align-items-center gap-3 mt-3">
+            <button type="button" id="add-stock-btn" class="btn btn-secondary">Add Stock</button>
+            <button type="submit" class="btn btn-primary">Calculate Frontier</button>
         </div>
-    </div>
-    <button type="submit">Submit</button>
-</form>
-{% if stats %}
-    <h2>Portfolio Stats</h2>
-    <ul>
-        <li>Expected Return (₹): {{ stats.mean }}</li>
-        <li>Risk (variance) : {{ stats.variance }}</li>
-    </ul>
-    <h2>Mean-Variance Frontier</h2>
-    {% if graph_html %}
-        {{ graph_html|safe }}
-    {% else %}
-        <p>No graph generated yet.</p>
+    </form>
+
+    {% if stats %}
+        <h2 class="mb-3 text-primary">Portfolio Stats</h2>
+        <ul class="list-group mb-4">
+            <li class="list-group-item">Expected Return (%): {{ stats.mean }}</li>
+            <li class="list-group-item">Risk (variance) : {{ stats.variance }}</li>
+        </ul>
+
+        <h2 class="mb-3 text-primary">Risk Frontiers</h2>
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="variance-tab" data-bs-toggle="tab" data-bs-target="#variance" type="button" role="tab" aria-controls="variance" aria-selected="true">Variance</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="var-tab" data-bs-toggle="tab" data-bs-target="#var" type="button" role="tab" aria-controls="var" aria-selected="false">VaR</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="cvar-tab" data-bs-toggle="tab" data-bs-target="#cvar" type="button" role="tab" aria-controls="cvar" aria-selected="false">CVaR</button>
+            </li>
+        </ul>
+        <div class="tab-content" id="myTabContent">
+            <div class="tab-pane fade show active" id="variance" role="tabpanel" aria-labelledby="variance-tab">
+                {% if graph_htmls and graph_htmls[0] %}
+                    {{ graph_htmls[0]|safe }}
+                {% else %}
+                    <p>No graph 1 generated yet.</p>
+                {% endif %}
+            </div>
+            <div class="tab-pane fade" id="var" role="tabpanel" aria-labelledby="var-tab">
+                {% if graph_htmls and graph_htmls[1] %}
+                    {{ graph_htmls[1]|safe }}
+                {% else %}
+                    <p>No graph 2 generated yet.</p>
+                {% endif %}
+            </div>
+            <div class="tab-pane fade" id="cvar" role="tabpanel" aria-labelledby="cvar-tab">
+                {% if graph_htmls and graph_htmls[2] %}
+                    {{ graph_htmls[2]|safe }}
+                {% else %}
+                    <p>No graph 3 generated yet.</p>
+                {% endif %}
+            </div>
+        </div>
     {% endif %}
-{% endif %}
+</div>
+
 <script>
-    function addStock() {
-        var div = document.createElement('div');
-        div.innerHTML = '<input type="text" name="stock" placeholder="Stock Symbol"> <input type="number" name="weight" placeholder="Weight" step="0.01" min="0" max="1">';
-        document.getElementById('stocks').appendChild(div);
-    }
+    document.addEventListener('DOMContentLoaded', function() {
+        let stockCount = {{ stocks|length if stocks else 2 }}; // Initialize with existing stocks or 2
+
+        document.getElementById('add-stock-btn').addEventListener('click', function() {
+            const stocksContainer = document.getElementById('stocks-container');
+            const newStockGroup = document.createElement('div');
+            newStockGroup.classList.add('stock-input-group', 'mb-3');
+            newStockGroup.innerHTML = `
+                <label for="stock${stockCount}" class="form-label visually-hidden">Stock ${stockCount + 1}:</label>
+                <input type="text" name="stock" id="stock${stockCount}" placeholder="Stock Symbol (e.g., TCS)" class="form-control">
+                <input type="number" name="weight" placeholder="Amount (%)" step="0.01" min="0" class="form-control">
+                <button type="button" class="btn btn-danger remove-stock-btn">Remove</button>
+            `;
+            stocksContainer.appendChild(newStockGroup);
+            stockCount++;
+        });
+
+        // Event delegation for remove buttons
+        document.getElementById('stocks-container').addEventListener('click', function(event) {
+            if (event.target.classList.contains('remove-stock-btn')) {
+                // Ensure at least two stock inputs remain
+                if (document.querySelectorAll('.stock-input-group').length > 2) {
+                    event.target.closest('.stock-input-group').remove();
+                } else {
+                    alert('You must have at least two stocks in your portfolio.');
+                }
+            }
+        });
+    });
 </script>
+
 {% endblock %}
