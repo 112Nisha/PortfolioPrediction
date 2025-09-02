@@ -40,8 +40,21 @@
     {% if stats %}
         <h2 class="mb-3 text-primary">Portfolio Stats</h2>
         <ul class="list-group mb-4">
-            <li class="list-group-item">Expected Return (%): {{ stats.mean }}</li>
-            <li class="list-group-item">Risk (variance) : {{ stats.variance }}</li>
+            <li class="list-group-item">Expected Return (%): {{ stats[0].mean }}</li>
+            <li class="list-group-item">Risk (variance) : {{ stats[0].variance }}</li>
+            <li class="list-group-item">Risk (VaR) : {{ stats[0].VaR }}</li>
+            <li class="list-group-item">Risk (CVar) : {{ stats[0].CVar }}</li>
+        </ul>
+
+        <ul class="list-group mb-4">
+            <li class="list-group-item">Expected Return (%): {{ stats[1].mean }}</li>
+            <li class="list-group-item">Risk (variance) : {{ stats[1].variance }}</li>
+            <li class="list-group-item">Risk (VaR) : {{ stats[1].VaR }}</li>
+            <li class="list-group-item">Risk (CVar) : {{ stats[1].CVar }}</li>
+            <li class="list-group-item">Risk (weights_cvar) : {{ stats[1].weights_cvar }}</li>
+            <li class="list-group-item">Risk (weights_var) : {{ stats[1].weights_var }}</li>
+            <li class="list-group-item">Risk (weights_variance) : {{ stats[1].weights_variance }}</li>
+
         </ul>
 
         <h2 class="mb-3 text-primary">Risk Frontiers</h2>

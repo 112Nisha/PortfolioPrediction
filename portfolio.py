@@ -10,7 +10,7 @@ from scipy.optimize import minimize
 class portfolio():
     def __init__(self, stocks, user_weights):
         self.stocks = stocks
-        self.user_weights = user_weights
+        self.user_weights = np.array([float(w)/100 for w in user_weights])
 
         self.df = self._load_data() # will store dataframe with return information for all stocks.
         self.mu = None
@@ -42,32 +42,38 @@ class portfolio():
         return merged.set_index("Date").dropna()
 
 
-    def _portfolio_var(self, w, returns_df, alpha=0.05):
-        pr = returns_df @ w
+    def _portfolio_var(self, w, alpha=0.05):
+        pr = self.rets @ w
         return -np.percentile(pr, alpha * 100)
 
-    def _portfolio_return(self, w, mu):
-        return w @ mu
+    def _portfolio_cvar(self, w, alpha=0.05):
+        var = self._portfolio_var(w, alpha)
+        return self.rets[self.rets < var].mean().to_numpy()[0]
 
-    def _as_series(self, w, index):
+    def _portfolio_return(self, w):
+        return w @ self.mu
+
+    def _as_series(self, w):
+        index = self.mu.index
         return pd.Series(w, index=index).sort_index()
-    
+
+
     def _optimize_mv_for_return(self, target_return):
         try:
             ef_mv = EfficientFrontier(self.mu, self.S)
             ef_mv.efficient_return(target_return)
-            w_mv = self._as_series(ef_mv.clean_weights(), self.mu.index)
+            w_mv = self._as_series(ef_mv.clean_weights())
             ret_mv, vol_mv, _ = ef_mv.portfolio_performance()
             return vol_mv, ret_mv, w_mv
-        except Exception as e:
-            print(f"Optimization failed at return {target_return}: {e}")
+        except Exception:
             return None
 
     def _optimize_cvar_for_return(self, target_return):
         try:
             ef_c = EfficientCVaR(self.mu, self.rets)
             ef_c.efficient_return(target_return)
-            w_c = self._as_series(ef_c.clean_weights(), self.mu.index)
+            # w_c = self._as_series(ef_c.clean_weights())
+            w_c = list(ef_c.clean_weights().values())
             ret_c, cvar_risk = ef_c.portfolio_performance()
             return cvar_risk, ret_c, w_c
         except Exception:
@@ -81,18 +87,18 @@ class portfolio():
             result = minimize(
                 self._portfolio_var,
                 initial_guess,
-                args=(self.rets,),
+                args=(),
                 method='SLSQP',
                 bounds=bounds,
                 constraints=[
                     {'type': 'eq', 'fun': lambda weights: np.sum(weights) - 1},
-                    {'type': 'eq', 'fun': lambda weights: self._portfolio_return(weights, self.mu) - target_return}
+                    {'type': 'eq', 'fun': lambda weights: self._portfolio_return(weights) - target_return}
                 ]
             )
             if result.success:
-                w_var = self._as_series(result.x, self.mu.index)
-                var_risk_val = self._portfolio_var(w_var, self.rets)
-                ret_var = self._portfolio_return(w_var, self.mu)
+                w_var = self._as_series(result.x)
+                var_risk_val = self._portfolio_var(w_var)
+                ret_var = self._portfolio_return(w_var)
                 return var_risk_val, ret_var, w_var
         except Exception:
             return None
@@ -106,7 +112,7 @@ class portfolio():
         self.mv_frontier_pts = [
             res for r in grid
             if (res := self._optimize_mv_for_return(r)) is not None
-        ]        
+        ]
         self.cvar_frontier_pts = [
             res for r in grid
             if (res := self._optimize_cvar_for_return(r)) is not None
@@ -121,9 +127,31 @@ class portfolio():
     def portfolio_metrics(self, weights):
         if weights is None or self.mu is None:
             return None
-    
+
         # calculate risk metrics and corresponding points on frontiers.
-        pass
+        self.pf_return = self._portfolio_return(weights)
+
+        opt_variance = self._optimize_mv_for_return(self.pf_return)
+        self.pf_variance_metrics = {
+            "user_variance": weights.T @ self.S @ weights,
+            "opt_variance": opt_variance[0] if opt_variance else None,
+            "opt_variance_weights": opt_variance[2] if opt_variance else None,
+        }
+
+        opt_var = self._optimize_var_for_return(self.pf_return)
+        self.pf_var_metrics = {
+            "user_var": self._portfolio_var(weights),
+            "opt_var": opt_var[0] if opt_var else None,
+            "opt_var_weights": opt_var[2] if opt_var else None,
+        }
+
+        opt_cvar = self._optimize_cvar_for_return(self.pf_return)
+        print(opt_cvar)
+        self.pf_cvar_metrics = {
+            "user_cvar": self._portfolio_cvar(weights),
+            "opt_cvar": opt_cvar[0] if opt_cvar else None,
+            "opt_cvar_weights": opt_cvar[2] if opt_cvar else None,
+        }
 
     def backtest_plot(self, weights, period):
         pass

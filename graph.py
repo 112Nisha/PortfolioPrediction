@@ -2,37 +2,60 @@ import os
 import plotly.graph_objs as go
 from portfolio import portfolio
 
-# TODO: ADD CODE TO PLOT THE POINT GIVEN BY THE USER ALSO (WITH ARROW?)
-def html_plot(stocks, points, risk, input_pf=None):
-    # Prepare Plotly traces for interactive graph
+def html_plot(stocks, points, risk, additional_points=None):
     traces = []
-    for pts, name, color in zip([points],
-                                [risk],
-                                ["red"]):
-        if pts:
-            risks = [x for x, _, _ in pts]
-            returns = [y for _, y, _ in pts]
-            splits = [w.values for _, _, w in pts]
-            customdata = splits
-            # TODO: CHANGE THIS SO THAT IT CAN BE MORE THAN 2 STOCKS
-            hovertemplate = (
-                f"Risk: %{{x:.4f}}<br>Return: %{{y:.4f}}<br>"
-                f"Split: {stocks[0]}=%{{customdata[0]:.2f}}, {stocks[1]}=%{{customdata[1]:.2f}}<extra></extra>"
-            )
-            traces.append(go.Scatter(
-                x=risks,
-                y=returns,
-                mode='markers+lines',
-                name=name,
-                marker=dict(color=color),
-                customdata=customdata,
-                hovertemplate=hovertemplate
-            ))
+    
+    # Helper to generate hovertemplate dynamically for N stocks
+    def get_hovertemplate(stock_list):
+        splits_str = ", ".join([f"{s}=%{{customdata[{i}]:.2f}}" for i, s in enumerate(stock_list)])
+        return (
+            f"Risk: %{{x:.4f}}<br>Return: %{{y:.4f}}<br>"
+            f"Split: {splits_str}<extra></extra>"
+        )
+    
+    # Add main frontier trace
+    if points:
+        risks = [x for x, _, _ in points]
+        returns = [y for _, y, _ in points]
+        splits = [w for _, _, w in points]
+        hovertemplate = get_hovertemplate(stocks)
+        traces.append(go.Scatter(
+            x=risks,
+            y=returns,
+            mode='markers+lines',
+            name=risk,
+            marker=dict(color="red"),
+            customdata=splits,
+            hovertemplate=hovertemplate
+        ))
+    else:
+        traces.append(go.Scatter(
+            x=[0], y=[0], mode='text',
+            text=["No efficient frontier points found."],
+            showlegend=False
+        ))
 
-    if not traces:
-        traces.append(go.Scatter(x=[0], y=[0], mode='text', text=["No efficient frontier points found."], showlegend=False))
-    elif input_pf:
-        traces.append(go.Scatter(x=[input_pf[0]], y=[input_pf[1]], mode='markers+lines', text=["No efficient frontier points found."], showlegend=False))
+    # Add additional points (if any)
+    if additional_points:
+        for ap in additional_points:
+            pts = ap.get("points")
+            label = ap.get("label", "Additional")
+            color = ap.get("color", "blue")
+
+            if pts:
+                risks = [x for x, _, _ in pts]
+                returns = [y for _, y, _ in pts]
+                # splits = [w for _, _, w in pts]
+                hovertemplate = get_hovertemplate(stocks)
+                traces.append(go.Scatter(
+                    x=risks,
+                    y=returns,
+                    mode='markers',
+                    name=label,
+                    marker=dict(color=color, size=10, symbol="diamond"),
+                    customdata=None,
+                    hovertemplate=hovertemplate
+                ))
 
     layout = go.Layout(
         title=f"{risk} frontier",
@@ -47,30 +70,75 @@ def html_plot(stocks, points, risk, input_pf=None):
     return html_str
 
 
-
 def generate_frontier_graph(pfo: portfolio):
-    """Generate the frontier HTML and return its absolute path.
-
-    This function expects `stocks` to be a list of two stock symbols
-    (matching files in the `data/` directory). It writes an interactive
-    Plotly HTML file to `static/portfolio_frontier.html` and returns the
-    absolute filesystem path so callers (like `app.py`) can open it.
-    """
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=[0], y=[0], mode='text', text=["No data available for selected stocks."], showlegend=False))
-    fig.update_layout(title="Frontiers with common-weight portfolios marked")
-    html_str = fig.to_html(include_plotlyjs=False, full_html=False)
-    # return [html_str, html_str, html_str]
     frontiers = []
 
-    # variance
-    frontiers.append(html_plot(pfo.df.columns, pfo.mv_frontier_pts, "Variance"))
+    additional_variables = None
+    if pfo.pf_variance_metrics["opt_variance"]:
+        additional_variables = [
+            {
+                "points": [(pfo.pf_variance_metrics["user_variance"], pfo.pf_return, pfo.user_weights)],
+                "label": "User Portfolio",
+                "color": "blue",
+            },
+            {
+                "points": [(pfo.pf_variance_metrics["opt_variance"], pfo.pf_return, pfo.pf_variance_metrics["opt_variance_weights"])],
+                "label": "Optimal Split",
+                "color": "green",
+            }
+        ]
+    frontiers.append(html_plot(pfo.df.columns, pfo.mv_frontier_pts, "Variance", additional_variables))
 
-    # value at risk
-    frontiers.append(html_plot(pfo.df.columns, pfo.var_frontier_pts, "VaR"))
+    additional_variables = None
+    if pfo.pf_var_metrics["opt_var"]:
+        additional_variables = [
+            {
+                "points": [(pfo.pf_var_metrics["user_var"], pfo.pf_return, pfo.user_weights)],
+                "label": "User Portfolio",
+                "color": "blue",
+            },
+            {
+                "points": [(pfo.pf_var_metrics["opt_var"], pfo.pf_return, pfo.pf_variance_metrics["opt_variance_weights"])],
+                "label": "Optimal Split",
+                "color": "green",
+            }
+        ]
+    frontiers.append(html_plot(pfo.df.columns, pfo.var_frontier_pts, "VaR", additional_variables))
 
-
-    # conditional value at risk
-    frontiers.append(html_plot(pfo.df.columns, pfo.cvar_frontier_pts, "CVaR"))
+    additional_variables = None
+    if pfo.pf_cvar_metrics["opt_cvar"]:
+        additional_variables = [
+            {
+                "points": [(pfo.pf_cvar_metrics["user_cvar"], pfo.pf_return, pfo.user_weights)],
+                "label": "User Portfolio",
+                "color": "blue",
+            },
+            {
+                "points": [(pfo.pf_cvar_metrics["opt_cvar"], pfo.pf_return, pfo.pf_variance_metrics["opt_variance_weights"])],
+                "label": "Optimal Split",
+                "color": "green",
+            }
+        ]
+    frontiers.append(html_plot(pfo.df.columns, pfo.cvar_frontier_pts, "CVaR", additional_variables))
 
     return frontiers
+
+def format_pf_stats(pfo: portfolio):
+    user_metrics = {
+        "mean": f"{pfo.pf_return}",
+        "variance": f"{pfo.pf_variance_metrics['user_variance']}",
+        "VaR": f"{pfo.pf_var_metrics['user_var']}",
+        "CVar": f"{pfo.pf_cvar_metrics['user_cvar']}",
+    }
+
+    optimized_metrics = {
+        "mean": f"{pfo.pf_return}",
+        "variance": f"{pfo.pf_variance_metrics['opt_variance']}",
+        "VaR": f"{pfo.pf_var_metrics['opt_var']}",
+        "CVar": f"{pfo.pf_cvar_metrics['opt_cvar']}",
+        "weights_variance": f"{pfo.pf_variance_metrics['opt_variance_weights']}",
+        "weights_var": f"{pfo.pf_var_metrics['opt_var_weights']}",
+        "weights_cvar": f"{pfo.pf_cvar_metrics['opt_cvar_weights']}",
+    }
+
+    return [user_metrics, optimized_metrics]
