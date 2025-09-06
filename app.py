@@ -20,9 +20,13 @@ def index():
         pfo.portfolio_metrics(pfo.user_weights)
         stats = format_pf_stats(pfo)
 
-        graph_htmls = generate_frontier_graph(pfo)  # This function saves the HTML file
-        return render_template('index.html', stats=stats, graph_htmls=graph_htmls, stocks=stocks, weights=weights)
+        graph_htmls = generate_frontier_graph(pfo)  # frontier graphs
+        # create 3-month backtest HTML
+        backtest_html = pfo.backtest_plot(pfo.user_weights, '3M')
 
+        return render_template('index.html', stats=stats, graph_htmls=graph_htmls, backtest_html=backtest_html, stocks=stocks, weights=weights)
+
+    # GET request
     return render_template('index.html')
 
 @app.route('/about')

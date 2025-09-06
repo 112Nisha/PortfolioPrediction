@@ -68,6 +68,9 @@
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="cvar-tab" data-bs-toggle="tab" data-bs-target="#cvar" type="button" role="tab" aria-controls="cvar" aria-selected="false">CVaR</button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="backtest-tab" data-bs-toggle="tab" data-bs-target="#backtest" type="button" role="tab" aria-controls="backtest" aria-selected="false">Backtest (3M)</button>
+            </li>
         </ul>
         <div class="tab-content" id="myTabContent">
             <div class="tab-pane fade show active" id="variance" role="tabpanel" aria-labelledby="variance-tab">
@@ -91,13 +94,21 @@
                     <p>No graph 3 generated yet.</p>
                 {% endif %}
             </div>
+            <div class="tab-pane fade" id="backtest" role="tabpanel" aria-labelledby="backtest-tab">
+                {% if backtest_html %}
+                    {{ backtest_html|safe }}
+                {% else %}
+                    <p>No backtest available for the selected inputs or insufficient history.</p>
+                {% endif %}
+            </div>
         </div>
     {% endif %}
 </div>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        let stockCount = {{ stocks|length if stocks else 2 }}; // Initialize with existing stocks or 2
+    // Initialize stockCount from existing DOM inputs (fallback to 2)
+    let stockCount = document.querySelectorAll('.stock-input-group').length || 2;
 
         document.getElementById('add-stock-btn').addEventListener('click', function() {
             const stocksContainer = document.getElementById('stocks-container');

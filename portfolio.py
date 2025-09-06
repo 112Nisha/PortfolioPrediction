@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+import plotly.graph_objs as go
 from functools import reduce
 from pypfopt.efficient_frontier import EfficientCVaR
 from pypfopt import EfficientFrontier, risk_models, expected_returns
@@ -72,8 +73,9 @@ class portfolio():
         try:
             ef_c = EfficientCVaR(self.mu, self.rets)
             ef_c.efficient_return(target_return)
-            # w_c = self._as_series(ef_c.clean_weights())
-            w_c = list(ef_c.clean_weights().values())
+            # ensure weights are returned as a Series aligned with self.mu index
+            # ef_c.clean_weights() returns a dict; _as_series will align by index
+            w_c = self._as_series(ef_c.clean_weights())
             ret_c, cvar_risk = ef_c.portfolio_performance()
             return cvar_risk, ret_c, w_c
         except Exception:
@@ -154,4 +156,101 @@ class portfolio():
         }
 
     def backtest_plot(self, weights, period):
-        pass
+        # period: expect a pandas DateOffset-friendly specification like '3M' for 3 months
+        if self.df.empty:
+            return None
+
+        # Ensure the portfolio metrics for the provided weights are computed so we can find
+        # equivalent points on each frontier for the user's return.
+        try:
+            self.portfolio_metrics(weights)
+        except Exception:
+            # ensure we don't crash backtesting if metrics fail
+            pass
+
+        # Helper to coerce various weight formats to numpy array aligned with self.df columns
+        def to_array(w):
+            if w is None:
+                return None
+            if isinstance(w, np.ndarray):
+                return w
+            if isinstance(w, pd.Series):
+                # align to dataframe columns
+                return w.reindex(self.df.columns).to_numpy()
+            if isinstance(w, dict):
+                return pd.Series(w).reindex(self.df.columns).to_numpy()
+            # list-like
+            try:
+                arr = np.array(w)
+                if arr.shape[0] == len(self.df.columns):
+                    return arr
+            except Exception:
+                pass
+            return None
+
+        rets = self.df.pct_change().dropna()
+        end_date = self.df.index.max()
+        try:
+            # support '3M' style period
+            months = int(str(period).upper().replace('M', ''))
+            start_date = end_date - pd.DateOffset(months=months)
+        except Exception:
+            # fallback to 3 months
+            start_date = end_date - pd.DateOffset(months=3)
+
+        rets_sub = rets[rets.index >= start_date]
+        if rets_sub.empty:
+            return None
+
+        # Prepare user portfolio cumulative returns (if available)
+        user_w = to_array(weights)
+        pr_user = None
+        cum_user = None
+        if user_w is not None:
+            pr_user = rets_sub.dot(user_w)
+            cum_user = (1 + pr_user).cumprod()
+
+        # For each risk measure, find the optimized weights (for the user's portfolio return) and backtest
+        opt_var_w = None
+        if hasattr(self, 'pf_variance_metrics'):
+            opt_var_w = to_array(self.pf_variance_metrics.get('opt_variance_weights'))
+
+        opt_v_w = None
+        if hasattr(self, 'pf_var_metrics'):
+            opt_v_w = to_array(self.pf_var_metrics.get('opt_var_weights'))
+
+        opt_c_w = None
+        if hasattr(self, 'pf_cvar_metrics'):
+            opt_c_w = to_array(self.pf_cvar_metrics.get('opt_cvar_weights'))
+
+        # Helper to build a figure comparing user vs an optimized portfolio
+        def build_comparison_fig(opt_w, opt_name, include_user=True):
+            traces_local = []
+            title = f'Backtest over last {period} — {opt_name}'
+            if include_user and cum_user is not None:
+                traces_local.append(go.Scatter(x=cum_user.index, y=cum_user.values, mode='lines', name='User Portfolio', line=dict(width=2)))
+            if opt_w is not None:
+                pr_opt = rets_sub.dot(opt_w)
+                cum_opt = (1 + pr_opt).cumprod()
+                traces_local.append(go.Scatter(x=cum_opt.index, y=cum_opt.values, mode='lines', name=opt_name, line=dict(dash='dash')))
+            if not traces_local:
+                # nothing to show
+                traces_local.append(go.Scatter(x=[rets_sub.index.min(), rets_sub.index.max()], y=[1, 1], mode='lines', name='No data'))
+            layout = go.Layout(title=title, xaxis=dict(title='Date'), yaxis=dict(title='Cumulative Return (base 1)'), legend=dict(orientation='h', x=0, y=1.1), margin=dict(l=40, r=40, t=60, b=40))
+            return go.Figure(data=traces_local, layout=layout)
+
+        # Build three figures: Variance-opt, VaR-opt, CVaR-opt
+        figs = []
+        figs.append(build_comparison_fig(opt_var_w, 'Variance-opt'))
+        figs.append(build_comparison_fig(opt_v_w, 'VaR-opt'))
+        figs.append(build_comparison_fig(opt_c_w, 'CVaR-opt'))
+
+        # Convert figures to HTML snippets. Include plotly.js in the first only.
+        html_parts = []
+        for i, fig in enumerate(figs):
+            include_js = 'cdn' if i == 0 else False
+            html_parts.append(fig.to_html(include_plotlyjs=include_js, full_html=False))
+
+        # Wrap the three figures in a container
+        combined = '<div class="backtest-container">' + '\n<hr/>' .join(html_parts) + '</div>'
+        return combined
