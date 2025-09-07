@@ -1,23 +1,26 @@
 ## TO-DOs
-- Three separate frontier graphs, not one.
 - Plot the point corresponding to the weights they gave + arrow to the point we recommend.
+- Show the metrics for the recommended portfolio properly.
+- Make sure graphs work for more than 2 stocks.
 - Add backtesting graph
 
-- Change so that user can enter any stock code and we download.
+- Add docs.
+- Create a maximum limit of 5 stocks and select only from a list of stocks.
 - Add code to periodically update our data.
 
 
 ## DONE
+- Three separate frontier graphs, not one.
 - Create interactive frontiers for variance,var,cvar
+- POSTPROCESS WEIGHTS!!!
 
-POSTPROCESS WEIGHTS!!!
 
 ## Outputs
 1. Efficent frontier, where the point they gave is, where the point we are giving is (arrow)
 3. Minimum variance portfolio, possibly with desired return value.
 4. Backtesting graphs
 
-Should we include other risk measures?? 
+Should we include other risk measures??
 
 ## Considerations
 1. What estimators? -- shrinkage/sample? historical mean/capm?
@@ -35,5 +38,3 @@ Later: include other strategies like the ones prabhas used
 ## Structure
 - portfolio.py: frontier, metric calcs
 - graphs.py: all plotting calcs
-- predict.py: 
-- 

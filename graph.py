@@ -1,31 +1,37 @@
 import os
 import plotly.graph_objs as go
 from portfolio import portfolio
+import numpy as np
+import pandas as pd
 
-def html_plot(stocks, points, risk, additional_points=None):
+# Helper to generate hovertemplate dynamically for N stocks
+def get_hovertemplate(stock_list, label=None):
+    splits_str = ", ".join([f"{s}=%{{customdata[{i}]}}" for i, s in enumerate(stock_list)])
+    display = "Risk: %{x:.4f}<br>Return: %{y:.4f}<br>Split:" + splits_str + "<extra></extra>"
+    if label is not None:
+        display = label + "<br>" + display
+    return (display)
+
+
+def html_plot(stocks, points, risk_name, additional_points=None):
     traces = []
-    
-    # Helper to generate hovertemplate dynamically for N stocks
-    def get_hovertemplate(stock_list):
-        splits_str = ", ".join([f"{s}=%{{customdata[{i}]:.2f}}" for i, s in enumerate(stock_list)])
-        return (
-            f"Risk: %{{x:.4f}}<br>Return: %{{y:.4f}}<br>"
-            f"Split: {splits_str}<extra></extra>"
-        )
-    
+
     # Add main frontier trace
     if points:
-        risks = [x for x, _, _ in points]
-        returns = [y for _, y, _ in points]
-        splits = [w for _, _, w in points]
+        risks, returns, weights = [], [], []
+        for pt in points:
+            risks.append(pt[0])
+            returns.append(pt[1])
+            weights.append(pt[2])
+
         hovertemplate = get_hovertemplate(stocks)
         traces.append(go.Scatter(
             x=risks,
             y=returns,
             mode='markers+lines',
-            name=risk,
+            name=risk_name,
             marker=dict(color="red"),
-            customdata=splits,
+            customdata=weights,
             hovertemplate=hovertemplate
         ))
     else:
@@ -37,29 +43,23 @@ def html_plot(stocks, points, risk, additional_points=None):
 
     # Add additional points (if any)
     if additional_points:
-        for ap in additional_points:
-            pts = ap.get("points")
-            label = ap.get("label", "Additional")
-            color = ap.get("color", "blue")
+        for pt in additional_points:
+            risk, ret, weight, label = pt[0], pt[1], pt[2], pt[3]
 
-            if pts:
-                risks = [x for x, _, _ in pts]
-                returns = [y for _, y, _ in pts]
-                # splits = [w for _, _, w in pts]
-                hovertemplate = get_hovertemplate(stocks)
-                traces.append(go.Scatter(
-                    x=risks,
-                    y=returns,
-                    mode='markers',
-                    name=label,
-                    marker=dict(color=color, size=10, symbol="diamond"),
-                    customdata=None,
-                    hovertemplate=hovertemplate
-                ))
+            hovertemplate = get_hovertemplate(stocks, label)
+            traces.append(go.Scatter(
+                x=[risk],
+                y=[ret],
+                name=label,
+                mode='markers',
+                marker=dict(color='blue'),
+                customdata=[weight],
+                hovertemplate=hovertemplate
+            ))
 
     layout = go.Layout(
-        title=f"{risk} frontier",
-        xaxis=dict(title=risk),
+        title=f"{risk_name} frontier",
+        xaxis=dict(title=risk_name),
         yaxis=dict(title="Expected Return"),
         hovermode='closest',
         legend=dict(x=0, y=1.1, orientation='h'),
@@ -73,75 +73,27 @@ def html_plot(stocks, points, risk, additional_points=None):
 def generate_frontier_graph(pfo: portfolio):
     frontiers = []
 
-    additional_variables = None
-    if pfo.pf_variance_metrics["opt_variance"]:
-        additional_variables = [
-            {
-                "points": [(pfo.pf_variance_metrics["user_variance"], pfo.pf_return, pfo.user_weights)],
-                "label": "User Portfolio",
-                "color": "blue",
-            },
-            {
-                "points": [(pfo.pf_variance_metrics["opt_variance"], pfo.pf_return, pfo.pf_variance_metrics["opt_variance_weights"])],
-                "label": "Optimal Split",
-                "color": "green",
-            }
-        ]
+    if pfo.pf_metrics['opt_variance']:
+        additional_variables = [(pfo.pf_metrics['opt_variance'], pfo.pf_metrics['return'], pfo.pf_metrics['opt_variance_weights'], "Minimum Variance portfolio")]
+    else: additional_variables = None
+    # additional_variables = None
     frontiers.append(html_plot(pfo.df.columns, pfo.mv_frontier_pts, "Variance", additional_variables))
 
-    additional_variables = None
-    if pfo.pf_var_metrics["opt_var"]:
-        additional_variables = [
-            {
-                "points": [(pfo.pf_var_metrics["user_var"], pfo.pf_return, pfo.user_weights)],
-                "label": "User Portfolio",
-                "color": "blue",
-            },
-            {
-                "points": [(pfo.pf_var_metrics["opt_var"], pfo.pf_return, pfo.pf_variance_metrics["opt_variance_weights"])],
-                "label": "Optimal Split",
-                "color": "green",
-            }
-        ]
+    if pfo.pf_metrics['opt_var']:
+        additional_variables = [(pfo.pf_metrics['opt_var'], pfo.pf_metrics['return'], pfo.pf_metrics['opt_var_weights'], "Minimum VaR portfolio")]
+    else: additional_variables = None
+    # additional_variables = None
+
     frontiers.append(html_plot(pfo.df.columns, pfo.var_frontier_pts, "VaR", additional_variables))
 
-    additional_variables = None
-    if pfo.pf_cvar_metrics["opt_cvar"]:
-        additional_variables = [
-            {
-                "points": [(pfo.pf_cvar_metrics["user_cvar"], pfo.pf_return, pfo.user_weights)],
-                "label": "User Portfolio",
-                "color": "blue",
-            },
-            {
-                "points": [(pfo.pf_cvar_metrics["opt_cvar"], pfo.pf_return, pfo.pf_variance_metrics["opt_variance_weights"])],
-                "label": "Optimal Split",
-                "color": "green",
-            }
-        ]
+    if pfo.pf_metrics['opt_cvar']:
+        additional_variables = [(pfo.pf_metrics['opt_cvar'], pfo.pf_metrics['return'], pfo.pf_metrics['opt_cvar_weights'], "Minimum CVaR portfolio")]
+    else: additional_variables = None
+    # additional_variables = None
+
     frontiers.append(html_plot(pfo.df.columns, pfo.cvar_frontier_pts, "CVaR", additional_variables))
 
     return frontiers
-
-def format_pf_stats(pfo: portfolio):
-    user_metrics = {
-        "mean": f"{pfo.pf_return}",
-        "variance": f"{pfo.pf_variance_metrics['user_variance']}",
-        "VaR": f"{pfo.pf_var_metrics['user_var']}",
-        "CVar": f"{pfo.pf_cvar_metrics['user_cvar']}",
-    }
-
-    optimized_metrics = {
-        "mean": f"{pfo.pf_return}",
-        "variance": f"{pfo.pf_variance_metrics['opt_variance']}",
-        "VaR": f"{pfo.pf_var_metrics['opt_var']}",
-        "CVar": f"{pfo.pf_cvar_metrics['opt_cvar']}",
-        "weights_variance": f"{pfo.pf_variance_metrics['opt_variance_weights']}",
-        "weights_var": f"{pfo.pf_var_metrics['opt_var_weights']}",
-        "weights_cvar": f"{pfo.pf_cvar_metrics['opt_cvar_weights']}",
-    }
-
-    return [user_metrics, optimized_metrics]
 
 
 def backtest_plot(pfo: portfolio, weights, period='3M'):
@@ -153,8 +105,6 @@ def backtest_plot(pfo: portfolio, weights, period='3M'):
 
     Returns HTML string (plotly) or None if not enough data.
     """
-    import numpy as np
-    import pandas as pd
 
     if pfo.df.empty:
         return None
@@ -195,23 +145,10 @@ def backtest_plot(pfo: portfolio, weights, period='3M'):
         return None
 
     user_w = to_array(weights)
-    var_w = to_array(getattr(pfo, 'pf_variance_metrics', {}).get('opt_variance_weights'))
-
-    # VaR-opt weights may not have been computed earlier; try to retrieve or recompute
-    varopt_raw = getattr(pfo, 'pf_var_metrics', {}).get('opt_var_weights')
-    if varopt_raw is None:
-        try:
-            # attempt to recompute using the portfolio return
-            if hasattr(pfo, 'pf_return'):
-                res = pfo._optimize_var_for_return(pfo.pf_return)
-                varopt_raw = res[2] if res else None
-        except Exception:
-            varopt_raw = None
-    var_w_v = to_array(varopt_raw)
-    if var_w_v is None:
-        print("VaR-opt weights not available for backtest (optimizer failed or not computed).")
-
-    cvar_w = to_array(getattr(pfo, 'pf_cvar_metrics', {}).get('opt_cvar_weights'))
+    pf_metrics = getattr(pfo, 'pf_metrics', {})
+    variance_w = to_array(pf_metrics.get('opt_variance_weights'))
+    var_w = to_array(pf_metrics.get('opt_var_weights'))
+    cvar_w = to_array(pf_metrics.get('opt_cvar_weights'))
 
     traces = []
     # define accessible color palette
@@ -232,14 +169,14 @@ def backtest_plot(pfo: portfolio, weights, period='3M'):
         traces.append(go.Scatter(x=cum_user.index, y=cum_user.values, mode='lines+markers', name='User Portfolio', line=dict(width=3, color=colors['user']), marker=dict(size=4)))
 
     # variance-opt
-    if var_w is not None:
-        pr_var = rets_sub.dot(var_w)
+    if variance_w is not None:
+        pr_var = rets_sub.dot(variance_w)
         cum_var = (1 + pr_var).cumprod()
         traces.append(go.Scatter(x=cum_var.index, y=cum_var.values, mode='lines+markers', name='Variance-opt', line=dict(width=2, dash='dash', color=colors['variance']), marker=dict(size=3), hovertemplate=hover_tmpl))
 
     # VaR-opt
-    if var_w_v is not None:
-        pr_v = rets_sub.dot(var_w_v)
+    if var_w is not None:
+        pr_v = rets_sub.dot(var_w)
         cum_v = (1 + pr_v).cumprod()
         traces.append(go.Scatter(x=cum_v.index, y=cum_v.values, mode='lines+markers', name='VaR-opt', line=dict(width=2, dash='dot', color=colors['var']), marker=dict(size=3), hovertemplate=hover_tmpl))
 
