@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request
 from predict import compute_portfolio_stats
-from graph import generate_frontier_graph, format_pf_stats
+from graph import generate_frontier_graph, format_pf_stats, backtest_plot
 from portfolio import portfolio
 
 app = Flask(__name__)
@@ -21,8 +21,8 @@ def index():
         stats = format_pf_stats(pfo)
 
         graph_htmls = generate_frontier_graph(pfo)  # frontier graphs
-        # create 3-month backtest HTML
-        backtest_html = pfo.backtest_plot(pfo.user_weights, '3M')
+        # create 3-month backtest HTML (single comparative chart)
+        backtest_html = backtest_plot(pfo, pfo.user_weights, '3M')
 
         return render_template('index.html', stats=stats, graph_htmls=graph_htmls, backtest_html=backtest_html, stocks=stocks, weights=weights)
 
