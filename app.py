@@ -1,14 +1,25 @@
+import os
 from flask import Flask, render_template, request
 from graph import generate_frontier_graph, backtest_plot
 from portfolio import portfolio
 
 app = Flask(__name__)
+data_directory = './data'  # Replace with the desired path
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    files = os.listdir(data_directory)
+    stocks_list = [f.split('.')[0] for f in files if os.path.isfile(os.path.join(data_directory, f))]
+    print(stocks_list)
+
     if request.method == 'POST':
         stocks = request.form.getlist('stock')
         weights = request.form.getlist('weight')
+
+        if len(stocks) != len(set(stocks)):
+            error = "Your portfolio stocks must be unique."
+            return render_template('index.html', error=error, stocks=stocks, weights=weights)
+
         if sum([float(w) for w in weights]) != 100:
             error = "Your portfolio weights must sum to 100%."
             return render_template('index.html', error=error, stocks=stocks, weights=weights)
@@ -28,10 +39,10 @@ def index():
             return stats
         stats = format_weights(pfo.pf_metrics)
 
-        return render_template('index.html', stats=stats, graph_htmls=graph_htmls, backtest_html=backtest_html, stocks=stocks, weights=weights)
+        return render_template('index.html', stats=stats, graph_htmls=graph_htmls, backtest_html=backtest_html, stocks=stocks, weights=weights, stock_options=stocks_list)
 
     # GET request
-    return render_template('index.html')
+    return render_template('index.html', stock_options=stocks_list)
 
 @app.route('/about')
 def about():
