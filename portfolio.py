@@ -169,37 +169,3 @@ class portfolio():
             "opt_var_weights": opt_var[2] if opt_var else None,
             "opt_cvar_weights": opt_cvar[2] if opt_cvar else None
         }
-
-        # print optimized weights for variance frontier (aligned by stock)
-        # if opt_variance and opt_variance[2] is not None:
-        #     try:
-        #         print("Variance-opt weights for user-return:", opt_variance[2].to_dict())
-        #     except Exception:
-        #         print("Variance-opt weights for user-return:", opt_variance[2])
-
-        # opt_var = self._optimize_var_for_return(self.pf_return)
-        # self.pf_var_metrics = {
-        #     "user_var": self._portfolio_var(weights),
-        #     "opt_var": opt_var[0] if opt_var else None,
-        #     "opt_var_weights": opt_var[2] if opt_var else None,
-        # }
-        # # print optimized weights for VaR frontier
-        # if opt_var and opt_var[2] is not None:
-        #     try:
-        #         print("VaR-opt weights for user-return:", opt_var[2].to_dict())
-        #     except Exception:
-        #         print("VaR-opt weights for user-return:", opt_var[2])
-
-        # opt_cvar = self._optimize_cvar_for_return(self.pf_return)
-        # print(opt_cvar)
-        # self.pf_cvar_metrics = {
-        #     "user_cvar": self._portfolio_cvar(weights),
-        #     "opt_cvar": opt_cvar[0] if opt_cvar else None,
-        #     "opt_cvar_weights": opt_cvar[2] if opt_cvar else None,
-        # }
-        # # print optimized weights for CVaR frontier
-        # if opt_cvar and opt_cvar[2] is not None:
-        #     try:
-        #         print("CVaR-opt weights for user-return:", opt_cvar[2].to_dict())
-        #     except Exception:
-        #         print("CVaR-opt weights for user-return:", opt_cvar[2])

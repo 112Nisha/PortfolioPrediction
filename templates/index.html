@@ -91,7 +91,9 @@
         </div>
     </form>
 
-    {% if stats %}
+    {% if error %}
+    <h4 class="mb-3 text-danger">Error: {{ error }}</h4>
+    {% endif %} {% if stats %}
     <h2 class="mb-3 text-primary">Portfolio Stats</h2>
 
     <p><strong>Expected Return (%):</strong> {{ stats.return }}</p>
@@ -185,9 +187,20 @@
                 CVaR
             </button>
         </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="backtest-tab" data-bs-toggle="tab" data-bs-target="#backtest" type="button" role="tab" aria-controls="backtest" aria-selected="false">Backtest (3M)</button>
-            </li>
+        <li class="nav-item" role="presentation">
+            <button
+                class="nav-link"
+                id="backtest-tab"
+                data-bs-toggle="tab"
+                data-bs-target="#backtest"
+                type="button"
+                role="tab"
+                aria-controls="backtest"
+                aria-selected="false"
+            >
+                Backtest (3M)
+            </button>
+        </li>
     </ul>
     <div class="tab-content" id="myTabContent">
         <div
@@ -223,47 +236,64 @@
             <p>No graph 3 generated yet.</p>
             {% endif %}
         </div>
-            <div class="tab-pane fade" id="backtest" role="tabpanel" aria-labelledby="backtest-tab">
-                {% if backtest_html %}
-                    {{ backtest_html|safe }}
-                {% else %}
-                    <p>No backtest available for the selected inputs or insufficient history.</p>
-                {% endif %}
-            </div>
+        <div
+            class="tab-pane fade"
+            id="backtest"
+            role="tabpanel"
+            aria-labelledby="backtest-tab"
+        >
+            {% if backtest_html %} {{ backtest_html|safe }} {% else %}
+            <p>
+                No backtest available for the selected inputs or insufficient
+                history.
+            </p>
+            {% endif %}
+        </div>
     </div>
     {% endif %}
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-    // Initialize stockCount from existing DOM inputs (fallback to 2)
-    let stockCount = document.querySelectorAll('.stock-input-group').length || 2;
+    document.addEventListener("DOMContentLoaded", function () {
+        // Initialize stockCount from existing DOM inputs (fallback to 2)
+        let stockCount =
+            document.querySelectorAll(".stock-input-group").length || 2;
 
-        document.getElementById('add-stock-btn').addEventListener('click', function() {
-            const stocksContainer = document.getElementById('stocks-container');
-            const newStockGroup = document.createElement('div');
-            newStockGroup.classList.add('stock-input-group', 'mb-3');
-            newStockGroup.innerHTML = `
+        document
+            .getElementById("add-stock-btn")
+            .addEventListener("click", function () {
+                const stocksContainer =
+                    document.getElementById("stocks-container");
+                const newStockGroup = document.createElement("div");
+                newStockGroup.classList.add("stock-input-group", "mb-3");
+                newStockGroup.innerHTML = `
                 <label for="stock${stockCount}" class="form-label visually-hidden">Stock ${stockCount + 1}:</label>
                 <input type="text" name="stock" id="stock${stockCount}" placeholder="Stock Symbol (e.g., TCS)" class="form-control">
                 <input type="number" name="weight" placeholder="Amount (%)" step="0.01" min="0" class="form-control">
                 <button type="button" class="btn btn-danger remove-stock-btn">Remove</button>
             `;
-            stocksContainer.appendChild(newStockGroup);
-            stockCount++;
-        });
+                stocksContainer.appendChild(newStockGroup);
+                stockCount++;
+            });
 
         // Event delegation for remove buttons
-        document.getElementById('stocks-container').addEventListener('click', function(event) {
-            if (event.target.classList.contains('remove-stock-btn')) {
-                // Ensure at least two stock inputs remain
-                if (document.querySelectorAll('.stock-input-group').length > 2) {
-                    event.target.closest('.stock-input-group').remove();
-                } else {
-                    alert('You must have at least two stocks in your portfolio.');
+        document
+            .getElementById("stocks-container")
+            .addEventListener("click", function (event) {
+                if (event.target.classList.contains("remove-stock-btn")) {
+                    // Ensure at least two stock inputs remain
+                    if (
+                        document.querySelectorAll(".stock-input-group").length >
+                        2
+                    ) {
+                        event.target.closest(".stock-input-group").remove();
+                    } else {
+                        alert(
+                            "You must have at least two stocks in your portfolio.",
+                        );
+                    }
                 }
-            }
-        });
+            });
     });
 </script>
 
