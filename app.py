@@ -10,7 +10,6 @@ data_directory = './data'  # Replace with the desired path
 def index():
     files = os.listdir(data_directory)
     stocks_list = [f.split('.')[0] for f in files if os.path.isfile(os.path.join(data_directory, f))]
-    print(stocks_list)
 
     if request.method == 'POST':
         stocks = request.form.getlist('stock')

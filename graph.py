@@ -1,5 +1,6 @@
 import os
 import plotly.graph_objs as go
+import plotly.colors as pc
 from portfolio import portfolio
 import numpy as np
 import pandas as pd
@@ -42,9 +43,13 @@ def html_plot(stocks, points, risk_name, additional_points=None):
         ))
 
     # Add additional points (if any)
-    if additional_points:
-        for pt in additional_points:
+    if additional_points is not None:
+        # generate unique colors for each point
+        colors = ['blue', 'green'] # replace this is logic to generate color if need arises
+
+        for idx, pt in enumerate(additional_points):
             risk, ret, weight, label = pt[0], pt[1], pt[2], pt[3]
+            color = colors[idx]
 
             hovertemplate = get_hovertemplate(stocks, label)
             traces.append(go.Scatter(
@@ -52,7 +57,7 @@ def html_plot(stocks, points, risk_name, additional_points=None):
                 y=[ret],
                 name=label,
                 mode='markers',
-                marker=dict(color='blue'),
+                marker=dict(color=color),
                 customdata=[weight],
                 hovertemplate=hovertemplate
             ))
@@ -74,20 +79,29 @@ def generate_frontier_graph(pfo: portfolio):
     frontiers = []
 
     if pfo.pf_metrics['opt_variance']:
-        additional_variables = [(pfo.pf_metrics['opt_variance'], pfo.pf_metrics['return'], pfo.pf_metrics['opt_variance_weights'], "Minimum Variance portfolio")]
+        additional_variables = [
+            (pfo.pf_metrics['opt_variance'], pfo.pf_metrics['return'], pfo.pf_metrics['opt_variance_weights'], "Minimum Variance portfolio"),
+            (pfo.pf_metrics['user_variance'], pfo.pf_metrics['return'], pfo.pf_metrics['user_weights'], "User portfolio")
+        ]
     else: additional_variables = None
     # additional_variables = None
     frontiers.append(html_plot(pfo.df.columns, pfo.mv_frontier_pts, "Variance", additional_variables))
 
     if pfo.pf_metrics['opt_var']:
-        additional_variables = [(pfo.pf_metrics['opt_var'], pfo.pf_metrics['return'], pfo.pf_metrics['opt_var_weights'], "Minimum VaR portfolio")]
+        additional_variables = [
+            (pfo.pf_metrics['opt_var'], pfo.pf_metrics['return'], pfo.pf_metrics['opt_var_weights'], "Minimum VaR portfolio"),
+            (pfo.pf_metrics['user_var'], pfo.pf_metrics['return'], pfo.pf_metrics['user_weights'], "User portfolio")
+        ]
     else: additional_variables = None
     # additional_variables = None
 
     frontiers.append(html_plot(pfo.df.columns, pfo.var_frontier_pts, "VaR", additional_variables))
 
     if pfo.pf_metrics['opt_cvar']:
-        additional_variables = [(pfo.pf_metrics['opt_cvar'], pfo.pf_metrics['return'], pfo.pf_metrics['opt_cvar_weights'], "Minimum CVaR portfolio")]
+        additional_variables = [
+            (pfo.pf_metrics['opt_cvar'], pfo.pf_metrics['return'], pfo.pf_metrics['opt_cvar_weights'], "Minimum CVaR portfolio"),
+            (pfo.pf_metrics['user_cvar'], pfo.pf_metrics['return'], pfo.pf_metrics['user_weights'], "User portfolio")
+        ]
     else: additional_variables = None
     # additional_variables = None
 

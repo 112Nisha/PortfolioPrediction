@@ -165,7 +165,8 @@ class portfolio():
             "opt_var": opt_var[0] if opt_var else None,
             "opt_cvar": opt_cvar[0] if opt_cvar else None,
 
+            "user_weights": weights,
             "opt_variance_weights": opt_variance[2] if opt_variance else None,
             "opt_var_weights": opt_var[2] if opt_var else None,
-            "opt_cvar_weights": opt_cvar[2] if opt_cvar else None
+            "opt_cvar_weights": opt_cvar[2] if opt_cvar else None,
         }
