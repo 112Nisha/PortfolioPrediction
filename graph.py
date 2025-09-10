@@ -206,3 +206,52 @@ def backtest_plot(pfo: portfolio, weights, period='3M'):
     layout = go.Layout(title=f'Backtest over last {period}', xaxis=dict(title='Date'), yaxis=dict(title='Cumulative Return (base 1)'), legend=dict(orientation='h', x=0, y=1.1), margin=dict(l=40, r=40, t=60, b=40))
     fig = go.Figure(data=traces, layout=layout)
     return fig.to_html(include_plotlyjs=False, full_html=False)
+
+
+def backtest_plots_from_series(series_dict, title_suffix=None):
+    """Given a dict of series (keys: 'user','variance','var','cvar'),
+    produce an HTML plot similar to backtest_plot. Returns HTML string.
+    """
+    if not series_dict:
+        return None
+
+    traces = []
+    colors = {
+        'user': '#1f77b4',
+        'variance': '#ff7f0e',
+        'var': '#2ca02c',
+        'cvar': '#d62728',
+    }
+
+    hover_tmpl = 'Date: %{x}<br>Cumulative: %{y:.4f}<extra></extra>'
+
+    mapping = [("user", "User Portfolio"), ("variance", "Variance-opt"), ("var", "VaR-opt"), ("cvar", "CVaR-opt")]
+    for key, label in mapping:
+        s = series_dict.get(key)
+        if s is not None:
+            traces.append(go.Scatter(x=s.index, y=s.values, mode='lines+markers', name=label, line=dict(width=2, color=colors.get(key)), marker=dict(size=3), hovertemplate=hover_tmpl))
+
+    if not traces:
+        traces.append(go.Scatter(x=[0, 1], y=[1, 1], mode='lines', name='No data'))
+
+    title = 'Backtest'
+    if title_suffix:
+        title = f"{title} ({title_suffix})"
+
+    layout = go.Layout(title=title, xaxis=dict(title='Date'), yaxis=dict(title='Cumulative Return (base 1)'), legend=dict(orientation='h', x=0, y=1.1), margin=dict(l=40, r=40, t=60, b=40))
+    fig = go.Figure(data=traces, layout=layout)
+    return fig.to_html(include_plotlyjs=False, full_html=False)
+
+
+def generate_backtests_from_portfolio(pfo: portfolio, months_list=(1, 2, 3)):
+    """Compute backtest series for requested months and return list of html strings.
+
+    The function calls pfo.backtest_series for each months value and wraps them into
+    HTML using backtest_plots_from_series.
+    """
+    htmls = []
+    for m in months_list:
+        s = pfo.backtest_series(pfo.user_weights, months=m)
+        html = backtest_plots_from_series(s, title_suffix=f"{m}M") if s is not None else None
+        htmls.append(html)
+    return htmls

@@ -1,9 +1,8 @@
 {% extends 'base.html' %} {% block title %}Home - PortfolioPrediction{% endblock
 %} {% block content %}
 <style>
-    /*select[name="stock"] {
-        color: gray; /* Grays out the selected placeholder */
-    }*/
+    /* Optional: make stock select placeholder gray */
+    /* select[name="stock"] { color: gray; } */
 
     select[name="stock"] option:disabled {
         color: gray; /* Grays out the placeholder when disabled */
@@ -106,6 +105,19 @@
             <button type="button" id="add-stock-btn" class="btn btn-secondary">
                 Add Stock
             </button>
+            <label class="ms-2">Train months:
+                <input id="train-months" type="number" name="train_months" value="{{ train_months | default(36) }}" min="1" class="form-control d-inline-block" style="width:100px;">
+            </label>
+            <label class="ms-2">Test months:
+                <input id="test-months" type="number" name="test_months" value="{{ test_months | default(3) }}" min="1" class="form-control d-inline-block" style="width:100px;">
+            </label>
+            <div class="ms-3 align-self-center">
+                {% if total_months is defined and total_months %}
+                <small class="text-muted">Available months: <strong id="total-months">{{ total_months }}</strong></small>
+                {% else %}
+                <small class="text-muted">Available months: <strong id="total-months">Unknown</strong></small>
+                {% endif %}
+            </div>
             <button type="submit" class="btn btn-primary">
                 Calculate Frontier
             </button>
@@ -263,11 +275,31 @@
             role="tabpanel"
             aria-labelledby="backtest-tab"
         >
-            {% if backtest_html %} {{ backtest_html|safe }} {% else %}
-            <p>
-                No backtest available for the selected inputs or insufficient
-                history.
-            </p>
+            {% if used_train is defined and used_test is defined %}
+            <p>Using last data: train={{ used_train }} months, test={{ used_test }} months</p>
+            {% endif %}
+            <div class="backtest-stack">
+                <div class="mb-4">
+                    <h5>1 Month</h5>
+                    {% if backtest_htmls and backtest_htmls[0] %} {{ backtest_htmls[0]|safe }} {% else %}
+                    <p>No 1M backtest available.</p>
+                    {% endif %}
+                </div>
+                <div class="mb-4">
+                    <h5>2 Months</h5>
+                    {% if backtest_htmls and backtest_htmls[1] %} {{ backtest_htmls[1]|safe }} {% else %}
+                    <p>No 2M backtest available.</p>
+                    {% endif %}
+                </div>
+                <div class="mb-4">
+                    <h5>3 Months</h5>
+                    {% if backtest_htmls and backtest_htmls[2] %} {{ backtest_htmls[2]|safe }} {% else %}
+                    <p>No 3M backtest available.</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% if not backtest_htmls %}
+            <p>No backtest available for the selected inputs or insufficient history.</p>
             {% endif %}
         </div>
     </div>
@@ -323,6 +355,28 @@
                 }
             });
     });
+
+        // Train/Test auto-clamp logic
+        const trainInput = document.getElementById('train-months');
+        const testInput = document.getElementById('test-months');
+        const totalEl = document.getElementById('total-months');
+        const totalMonths = totalEl && totalEl.textContent && !isNaN(parseInt(totalEl.textContent)) ? parseInt(totalEl.textContent) : null;
+
+        function clampValues() {
+            if (!totalMonths) return;
+            let t = parseInt(trainInput.value) || 0;
+            let s = parseInt(testInput.value) || 0;
+            if (t < 0) t = 0;
+            if (s < 0) s = 0;
+            if (t + s > totalMonths) {
+                // prefer keeping test as requested, reduce train
+                const newTrain = Math.max(totalMonths - s, 0);
+                trainInput.value = newTrain;
+            }
+        }
+
+        trainInput.addEventListener('change', clampValues);
+        testInput.addEventListener('change', clampValues);
 </script>
 
 {% endblock %}

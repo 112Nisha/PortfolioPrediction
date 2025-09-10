@@ -12,7 +12,11 @@ class portfolio():
         self.stocks = stocks
         self.user_weights = np.array([float(w)/100 for w in user_weights])
 
-        self.df = self._load_data() # will store dataframe with return information for all stocks.
+        # full_df holds the complete history (used for backtests). self.df
+        # will be the working dataframe used for optimization (usually train set).
+        self.full_df = self._load_data()  # full history
+        self.df = self.full_df.copy()
+
         self.mu, self.S, self.rets = None, None, None
         if not self.df.empty:
             self.rets = self.df.pct_change().dropna()
@@ -56,10 +60,121 @@ class portfolio():
         index = self.mu.index
         return pd.Series(w, index=index).sort_index().round(2)
 
+    def use_df(self, df):
+        """Replace working dataframe (used for optimization) and recompute mu/S/rets.
+
+        Keep self.full_df unchanged so backtests operate on the full history.
+        """
+        self.df = df.copy()
+        if not self.df.empty:
+            self.rets = self.df.pct_change().dropna()
+            self.mu = expected_returns.mean_historical_return(self.df)
+            self.S = risk_models.sample_cov(self.df)
+        else:
+            self.rets, self.mu, self.S = None, None, None
+
+    def split_train_test(self, train_months: int = 36, test_months: int = 3):
+        """Split the available full data into a train and test partition by months.
+
+        Defaults: train 36 months, test 3 months. The requested months are capped
+        by the available history in `self.full_df`.
+
+    Returns (train_df, test_df, used_train_months, used_test_months, total_months).
+        """
+        if self.full_df is None or self.full_df.empty:
+            return pd.DataFrame(), pd.DataFrame(), 0, 0
+
+        # total available months between first and last index (approx)
+        start = self.full_df.index.min()
+        end = self.full_df.index.max()
+        total_months = (end.year - start.year) * 12 + (end.month - start.month) + 1
+
+        # cap requested months to available months
+        req_train = int(train_months)
+        req_test = int(test_months)
+        if req_train + req_test > total_months:
+            # give test its requested share (but capped) and reduce train
+            req_test = min(req_test, total_months)
+            req_train = max(total_months - req_test, 0)
+
+        # compute cutoffs
+        test_start = end - pd.DateOffset(months=req_test) + pd.DateOffset(days=1)
+        train_start = test_start - pd.DateOffset(months=req_train)
+
+        train_df = self.full_df[self.full_df.index >= train_start]
+        train_df = train_df[train_df.index < test_start]
+        test_df = self.full_df[self.full_df.index >= test_start]
+
+        return train_df, test_df, req_train, req_test, total_months
+
+    def backtest_series(self, weights, months=3):
+        """Compute cumulative return series for user & optimized portfolios over
+        the last `months` months from the full history.
+
+        Returns a dict of pandas.Series (keys: 'user','variance','var','cvar') or
+        None when insufficient data.
+        """
+        if self.full_df is None or self.full_df.empty:
+            return None
+
+        # Ensure portfolio metrics (and opt weights) are available
+        try:
+            self.portfolio_metrics(weights)
+        except Exception:
+            pass
+
+        # helper to coerce weight containers to numpy arrays aligned with columns
+        def to_array(w):
+            if w is None:
+                return None
+            if isinstance(w, np.ndarray):
+                return w
+            if isinstance(w, pd.Series):
+                return w.reindex(self.full_df.columns).to_numpy()
+            if isinstance(w, dict):
+                return pd.Series(w).reindex(self.full_df.columns).to_numpy()
+            try:
+                arr = np.array(w)
+                if arr.shape[0] == len(self.full_df.columns):
+                    return arr
+            except Exception:
+                pass
+            return None
+
+        end_date = self.full_df.index.max()
+        start_date = end_date - pd.DateOffset(months=int(months)) + pd.DateOffset(days=1)
+
+        rets = self.full_df.pct_change().dropna()
+        rets_sub = rets[rets.index >= start_date]
+        if rets_sub.empty:
+            return None
+
+        user_w = to_array(weights)
+        pf_metrics = getattr(self, 'pf_metrics', {})
+        variance_w = to_array(pf_metrics.get('opt_variance_weights'))
+        var_w = to_array(pf_metrics.get('opt_var_weights'))
+        cvar_w = to_array(pf_metrics.get('opt_cvar_weights'))
+
+        out = {}
+        if user_w is not None:
+            pr_user = rets_sub.dot(user_w)
+            out['user'] = (1 + pr_user).cumprod()
+        if variance_w is not None:
+            pr_var = rets_sub.dot(variance_w)
+            out['variance'] = (1 + pr_var).cumprod()
+        if var_w is not None:
+            pr_v = rets_sub.dot(var_w)
+            out['var'] = (1 + pr_v).cumprod()
+        if cvar_w is not None:
+            pr_c = rets_sub.dot(cvar_w)
+            out['cvar'] = (1 + pr_c).cumprod()
+
+        return out
+
 
     def _optimize_mv_for_return(self, target_return):
         try:
-            ef_mv = EfficientFrontier(self.mu, self.S)
+            ef_mv = EfficientFrontier(self.mu, self.S, weight_bounds=(-1,1))
             ef_mv.efficient_return(target_return)
             w_mv = self._as_series(ef_mv.clean_weights())
             ret_mv, vol_mv, _ = ef_mv.portfolio_performance()
@@ -69,7 +184,7 @@ class portfolio():
 
     def _optimize_cvar_for_return(self, target_return):
         try:
-            ef_c = EfficientCVaR(self.mu, self.rets)
+            ef_c = EfficientCVaR(self.mu, self.rets, weight_bounds=(-1,1))
             ef_c.efficient_return(target_return)
             # ensure weights are returned as a Series aligned with self.mu index
             # ef_c.clean_weights() returns a dict; _as_series will align by index
@@ -81,7 +196,7 @@ class portfolio():
 
     def _optimize_var_for_return(self, target_return):
         num_assets = len(self.mu)
-        bounds = tuple((0, 1) for _ in range(num_assets))
+        bounds = tuple((-1, 1) for _ in range(num_assets))
         # Try multiple random restarts to improve robustness — VaR objective is non-convex
         rng = np.random.default_rng()
         attempts = 6
