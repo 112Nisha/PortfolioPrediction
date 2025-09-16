@@ -129,7 +129,76 @@
     {% endif %} {% if stats %}
     <h2 class="mb-3 text-primary">Portfolio Stats</h2>
 
-    <p><strong>Expected Return (%):</strong> {{ stats.return }}</p>
+    {%- macro render_stats_table(stats) -%}
+        {#
+          This macro renders the stats table exactly as you originally designed it.
+          'stats' is the dictionary for either the train or test set.
+        #}
+
+        <p><strong>Expected/Average Annual Return (%):</strong> {{ stats.return }}</p>
+
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Risk Measure</th>
+                    <th>User Portfolio</th>
+                    <th>Optimised Portfolio</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Variance</td>
+                    <td>{{ stats.user_variance }}</td>
+                    <td>
+                        {{ stats.opt_variance | default("Could not optimise", true) }}
+                    </td>
+                </tr>
+                <tr>
+                    <td>VaR</td>
+                    <td>{{ stats.user_var }}</td>
+                    <td>
+                        {{ stats.opt_var | default("Could not optimise", true) }}
+                    </td>
+                </tr>
+                <tr>
+                    <td>CVaR</td>
+                    <td>{{ stats.user_cvar }}</td>
+                    <td>
+                        {{ stats.opt_cvar | default("Could not optimise", true) }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    {%- endmacro %}
+
+
+    <ul class="nav nav-tabs" id="statsTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="train-tab" data-bs-toggle="tab" data-bs-target="#train-tab-pane" type="button" role="tab" aria-controls="train-tab-pane" aria-selected="true">
+                Training Set
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="test-tab" data-bs-toggle="tab" data-bs-target="#test-tab-pane" type="button" role="tab" aria-controls="test-tab-pane" aria-selected="false">
+                Test Set
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="statsTabContent">
+        <div class="tab-pane fade show active" id="train-tab-pane" role="tabpanel" aria-labelledby="train-tab" tabindex="0">
+            <div class="p-3 border border-top-0">
+                {{ render_stats_table(stats.train) }}
+            </div>
+        </div>
+        <div class="tab-pane fade" id="test-tab-pane" role="tabpanel" aria-labelledby="test-tab" tabindex="0">
+            <div class="p-3 border border-top-0">
+                {{ render_stats_table(stats.test) }}
+            </div>
+        </div>
+    </div>
+
+    <!--<p><strong>Expected Return (%):</strong> {{ stats.return }}</p>
 
     <table class="table table-bordered">
         <thead>
@@ -163,18 +232,18 @@
                 </td>
             </tr>
         </tbody>
-    </table>
+    </table>-->
 
     <h3 class="mt-4">Optimal Portfolios</h3>
 
     <p>Variance-Optimised Weights</p>
-    <pre><code>{{ stats.opt_variance_weights }}</code></pre>
+    <pre><code>{{ stats.train.opt_variance_weights }}</code></pre>
 
     <p>VaR-Optimised Weights</p>
-    <pre><code>{{ stats.opt_var_weights }}</code></pre>
+    <pre><code>{{ stats.train.opt_var_weights }}</code></pre>
 
     <p>CVaR-Optimised Weights</p>
-    <pre><code>{{ stats.opt_cvar_weights }}</code></pre>
+    <pre><code>{{ stats.train.opt_cvar_weights }}</code></pre>
 
     <h2 class="mb-3 text-primary">Risk Frontiers</h2>
     <ul class="nav nav-tabs" id="myTab" role="tablist">
@@ -231,7 +300,7 @@
                 aria-controls="backtest"
                 aria-selected="false"
             >
-                Backtest (3M)
+                Backtest
             </button>
         </li>
     </ul>

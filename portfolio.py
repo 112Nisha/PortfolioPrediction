@@ -44,42 +44,13 @@ class portfolio():
         merged = reduce(lambda left, right: pd.merge(left, right, on="Date", how="inner"), dfs)
         return merged.set_index("Date").dropna()
 
-
-    def _portfolio_var(self, w, alpha=0.05):
-        pr = self.rets @ w
-        return -np.percentile(pr, alpha * 100)
-
-    def _portfolio_cvar(self, w, alpha=0.05):
-        var = self._portfolio_var(w, alpha)
-        return self.rets[self.rets < var].mean().to_numpy()[0]
-
-    def _portfolio_return(self, w):
-        return w @ self.mu
-
-    def _as_series(self, w):
-        index = self.mu.index
-        return pd.Series(w, index=index).sort_index().round(2)
-
-    def use_df(self, df):
-        """Replace working dataframe (used for optimization) and recompute mu/S/rets.
-
-        Keep self.full_df unchanged so backtests operate on the full history.
-        """
-        self.df = df.copy()
-        if not self.df.empty:
-            self.rets = self.df.pct_change().dropna()
-            self.mu = expected_returns.mean_historical_return(self.df)
-            self.S = risk_models.sample_cov(self.df)
-        else:
-            self.rets, self.mu, self.S = None, None, None
-
     def split_train_test(self, train_months: int = 36, test_months: int = 3):
         """Split the available full data into a train and test partition by months.
 
         Defaults: train 36 months, test 3 months. The requested months are capped
         by the available history in `self.full_df`.
 
-    Returns (train_df, test_df, used_train_months, used_test_months, total_months).
+        Returns (train_df, test_df, used_train_months, used_test_months, total_months).
         """
         if self.full_df is None or self.full_df.empty:
             return pd.DataFrame(), pd.DataFrame(), 0, 0
@@ -107,7 +78,39 @@ class portfolio():
 
         return train_df, test_df, req_train, req_test, total_months
 
-    def backtest_series(self, weights, months=3):
+    def use_df(self, df):
+        """Replace working dataframe (used for optimization) and recompute mu/S/rets.
+
+        Keep self.full_df unchanged so backtests operate on the full history.
+        """
+        self.df = df.copy()
+        if not self.df.empty:
+            self.rets = self.df.pct_change().dropna()
+            self.mu = expected_returns.mean_historical_return(self.df)
+            self.S = risk_models.sample_cov(self.df)
+        else:
+            self.rets, self.mu, self.S = None, None, None
+
+
+    def _portfolio_var(self, w, alpha=0.05):
+        pr = self.rets @ w
+        return -np.percentile(pr, alpha * 100)
+
+    def _portfolio_cvar(self, w, alpha=0.05):
+        pr = self.rets @ w
+        var = np.percentile(pr, alpha * 100)
+        return -pr[pr <= var].mean()
+        # return self.rets[self.rets < var].mean().to_numpy()[0]
+
+
+    def _portfolio_return(self, w):
+        return w @ self.mu
+
+    def _as_series(self, w):
+        index = self.mu.index
+        return pd.Series(w, index=index).sort_index().round(2)
+
+    def backtest_series(self, test_df, months=3):
         """Compute cumulative return series for user & optimized portfolios over
         the last `months` months from the full history.
 
@@ -117,12 +120,7 @@ class portfolio():
         if self.full_df is None or self.full_df.empty:
             return None
 
-        # Ensure portfolio metrics (and opt weights) are available
-        try:
-            self.portfolio_metrics(weights)
-        except Exception:
-            pass
-
+        weights = self.user_weights
         # helper to coerce weight containers to numpy arrays aligned with columns
         def to_array(w):
             if w is None:
@@ -141,33 +139,36 @@ class portfolio():
                 pass
             return None
 
-        end_date = self.full_df.index.max()
-        start_date = end_date - pd.DateOffset(months=int(months)) + pd.DateOffset(days=1)
+        # end_date = self.full_df.index.max()
+        # start_date = end_date - pd.DateOffset(months=int(months)) + pd.DateOffset(days=1)
 
-        rets = self.full_df.pct_change().dropna()
-        rets_sub = rets[rets.index >= start_date]
-        if rets_sub.empty:
-            return None
+        # rets = self.full_df.pct_change().dropna()
+        # rets_sub = rets[rets.index >= start_date]
+        # if rets_sub.empty:
+        #     return None
+        old_df = self.df.copy()
+        self.use_df(test_df)
 
         user_w = to_array(weights)
-        pf_metrics = getattr(self, 'pf_metrics', {})
-        variance_w = to_array(pf_metrics.get('opt_variance_weights'))
-        var_w = to_array(pf_metrics.get('opt_var_weights'))
-        cvar_w = to_array(pf_metrics.get('opt_cvar_weights'))
+        variance_w = to_array(self.opt_variance[2])
+        var_w = to_array(self.opt_var[2])
+        cvar_w = to_array(self.opt_cvar[2])
 
         out = {}
         if user_w is not None:
-            pr_user = rets_sub.dot(user_w)
+            pr_user = self.rets @ (user_w)
             out['user'] = (1 + pr_user).cumprod()
         if variance_w is not None:
-            pr_var = rets_sub.dot(variance_w)
+            pr_var = self.rets @ (variance_w)
             out['variance'] = (1 + pr_var).cumprod()
         if var_w is not None:
-            pr_v = rets_sub.dot(var_w)
+            pr_v = self.rets @ (var_w)
             out['var'] = (1 + pr_v).cumprod()
         if cvar_w is not None:
-            pr_c = rets_sub.dot(cvar_w)
+            pr_c = self.rets @ (cvar_w)
             out['cvar'] = (1 + pr_c).cumprod()
+
+        self.use_df(old_df)
 
         return out
 
@@ -258,30 +259,46 @@ class portfolio():
             if (res := self._optimize_var_for_return(r)) is not None
         ]
 
-        print(len(self.cvar_frontier_pts), len(self.mv_frontier_pts), len(self.var_frontier_pts))
+        # calculate risk metrics and corresponding points on frontiers.
+        self.pf_return = self._portfolio_return(self.user_weights)
+        self.opt_variance = self._optimize_mv_for_return(self.pf_return)
+        self.opt_var = self._optimize_var_for_return(self.pf_return)
+        self.opt_cvar = self._optimize_cvar_for_return(self.pf_return)
 
-    def portfolio_metrics(self, weights):
+
+    def portfolio_metrics(self, df=None):
+        weights = self.user_weights
         if weights is None or self.mu is None:
             return None
 
-        # calculate risk metrics and corresponding points on frontiers.
-        self.pf_return = self._portfolio_return(weights)
-        opt_variance = self._optimize_mv_for_return(self.pf_return)
-        opt_var = self._optimize_var_for_return(self.pf_return)
-        opt_cvar = self._optimize_cvar_for_return(self.pf_return)
+        if df is not None:
+            old_df = self.df.copy()
+            self.use_df(df)
 
-        self.pf_metrics = {
-            "return": round(self.pf_return*100, 4),
-            "user_variance": weights.T @ self.S @ weights,
+        returns = self._portfolio_return(weights)
+
+        # calculate user's portfolio volatility
+        ef_user = EfficientFrontier(self.mu, self.S)
+        ef_user.set_weights(dict(zip(self.stocks, weights)))
+        _, user_vol, _ = ef_user.portfolio_performance(verbose=False)
+
+        pf_metrics = {
+            "return": round(returns*100, 4),
+            "user_variance": user_vol, #weights.T @ self.S @ weights,
             "user_var": self._portfolio_var(weights),
             "user_cvar": self._portfolio_cvar(weights),
 
-            "opt_variance": opt_variance[0] if opt_variance else None,
-            "opt_var": opt_var[0] if opt_var else None,
-            "opt_cvar": opt_cvar[0] if opt_cvar else None,
+            "opt_variance": self.opt_variance[0] if self.opt_variance else None,
+            "opt_var": self.opt_var[0] if self.opt_var else None,
+            "opt_cvar": self.opt_cvar[0] if self.opt_cvar else None,
 
             "user_weights": weights,
-            "opt_variance_weights": opt_variance[2] if opt_variance else None,
-            "opt_var_weights": opt_var[2] if opt_var else None,
-            "opt_cvar_weights": opt_cvar[2] if opt_cvar else None,
+            "opt_variance_weights": self.opt_variance[2] if self.opt_variance else None,
+            "opt_var_weights": self.opt_var[2] if self.opt_var else None,
+            "opt_cvar_weights": self.opt_cvar[2] if self.opt_cvar else None,
         }
+
+        if df is not None: # restore the old dataframe
+            self.use_df(old_df)
+
+        return pf_metrics

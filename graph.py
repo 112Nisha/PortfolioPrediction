@@ -75,32 +75,32 @@ def html_plot(stocks, points, risk_name, additional_points=None):
     return html_str
 
 
-def generate_frontier_graph(pfo: portfolio):
+def generate_frontier_graph(pfo: portfolio, pf_metrics):
     frontiers = []
 
-    if pfo.pf_metrics['opt_variance']:
+    if pf_metrics['opt_variance']:
         additional_variables = [
-            (pfo.pf_metrics['opt_variance'], pfo.pf_metrics['return'], pfo.pf_metrics['opt_variance_weights'], "Minimum Variance portfolio"),
-            (pfo.pf_metrics['user_variance'], pfo.pf_metrics['return'], pfo.pf_metrics['user_weights'], "User portfolio")
+            (pf_metrics['opt_variance'], pf_metrics['return'], pf_metrics['opt_variance_weights'], "Minimum Variance portfolio"),
+            (pf_metrics['user_variance'], pf_metrics['return'], pf_metrics['user_weights'], "User portfolio")
         ]
     else: additional_variables = None
     # additional_variables = None
     frontiers.append(html_plot(pfo.df.columns, pfo.mv_frontier_pts, "Variance", additional_variables))
 
-    if pfo.pf_metrics['opt_var']:
+    if pf_metrics['opt_var']:
         additional_variables = [
-            (pfo.pf_metrics['opt_var'], pfo.pf_metrics['return'], pfo.pf_metrics['opt_var_weights'], "Minimum VaR portfolio"),
-            (pfo.pf_metrics['user_var'], pfo.pf_metrics['return'], pfo.pf_metrics['user_weights'], "User portfolio")
+            (pf_metrics['opt_var'], pf_metrics['return'], pf_metrics['opt_var_weights'], "Minimum VaR portfolio"),
+            (pf_metrics['user_var'], pf_metrics['return'], pf_metrics['user_weights'], "User portfolio")
         ]
     else: additional_variables = None
     # additional_variables = None
 
     frontiers.append(html_plot(pfo.df.columns, pfo.var_frontier_pts, "VaR", additional_variables))
 
-    if pfo.pf_metrics['opt_cvar']:
+    if pf_metrics['opt_cvar']:
         additional_variables = [
-            (pfo.pf_metrics['opt_cvar'], pfo.pf_metrics['return'], pfo.pf_metrics['opt_cvar_weights'], "Minimum CVaR portfolio"),
-            (pfo.pf_metrics['user_cvar'], pfo.pf_metrics['return'], pfo.pf_metrics['user_weights'], "User portfolio")
+            (pf_metrics['opt_cvar'], pf_metrics['return'], pf_metrics['opt_cvar_weights'], "Minimum CVaR portfolio"),
+            (pf_metrics['user_cvar'], pf_metrics['return'], pf_metrics['user_weights'], "User portfolio")
         ]
     else: additional_variables = None
     # additional_variables = None
@@ -243,7 +243,7 @@ def backtest_plots_from_series(series_dict, title_suffix=None):
     return fig.to_html(include_plotlyjs=False, full_html=False)
 
 
-def generate_backtests_from_portfolio(pfo: portfolio, months_list=(1, 2, 3)):
+def generate_backtests_from_portfolio(pfo: portfolio, test_df, months_list=(1, 2, 3)):
     """Compute backtest series for requested months and return list of html strings.
 
     The function calls pfo.backtest_series for each months value and wraps them into
@@ -251,7 +251,7 @@ def generate_backtests_from_portfolio(pfo: portfolio, months_list=(1, 2, 3)):
     """
     htmls = []
     for m in months_list:
-        s = pfo.backtest_series(pfo.user_weights, months=m)
+        s = pfo.backtest_series(test_df, months=m)
         html = backtest_plots_from_series(s, title_suffix=f"{m}M") if s is not None else None
         htmls.append(html)
     return htmls

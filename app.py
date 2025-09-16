@@ -70,23 +70,25 @@ def index():
             # lazy imports to avoid failing at module import time if heavy deps are missing
             from portfolio import portfolio
             from graph import generate_frontier_graph, backtest_plot, generate_backtests_from_portfolio
-
+    
             pfo = portfolio(stocks, weights)
-
+    
             # split and use train for optimisation
             train_df, test_df, used_train, used_test, total_months = pfo.split_train_test(train_months, test_months)
             pfo.use_df(train_df)
-
+    
             pfo.calculate_frontiers()
-            pfo.portfolio_metrics(pfo.user_weights)
-            graph_htmls = generate_frontier_graph(pfo)  # frontier graphs
-
+            train_metrics = pfo.portfolio_metrics() # with train data
+            test_metrics = pfo.portfolio_metrics(test_df) # with test_data
+            graph_htmls = generate_frontier_graph(pfo, train_metrics)  # frontier graphs
+    
             # create backtests for 1,2,3 months using full history and current opt weights
-            backtest_htmls = generate_backtests_from_portfolio(pfo, months_list=(1, 2, 3))
-
-            stats = format_weights(pfo.pf_metrics)
-
-            return render_template('index.html', stats=stats, graph_htmls=graph_htmls, backtest_htmls=backtest_htmls, used_train=used_train, used_test=used_test, total_months=total_months, train_months=train_months, test_months=test_months, stocks=stocks, weights=weights, stock_options=stocks_list)
+            backtest_htmls = generate_backtests_from_portfolio(pfo, test_df, months_list=(1, 2, 3))
+    
+            train_stats = format_weights(train_metrics)
+            test_stats = format_weights(test_metrics)
+    
+            return render_template('index.html', stats={"train": train_stats, "test": test_stats}, graph_htmls=graph_htmls, backtest_htmls=backtest_htmls, used_train=used_train, used_test=used_test, total_months=total_months, train_months=train_months, test_months=test_months, stocks=stocks, weights=weights, stock_options=stocks_list)
         except Exception as e:
             # If heavy deps are missing or an error happens, show a friendly error and the GET view data
             return render_template('index.html', error=str(e), stock_options=stocks_list)
