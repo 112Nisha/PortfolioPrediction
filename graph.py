@@ -107,6 +107,19 @@ def generate_frontier_graph(pfo: portfolio, pf_metrics):
 
     frontiers.append(html_plot(pfo.df.columns, pfo.cvar_frontier_pts, "CVaR", additional_variables))
 
+    if pf_metrics['opt_max_return']:
+        additional_variables = [
+            (pf_metrics['opt_max_return_variance'], pf_metrics['opt_max_return'], 
+             pf_metrics['opt_max_return_weights'], "Maximum Return portfolio"),
+            (pf_metrics['user_variance'], pf_metrics['return'], 
+             pf_metrics['user_weights'], "User portfolio")
+        ]
+    else: 
+        additional_variables = None
+
+    frontiers.append(html_plot(pfo.df.columns, pfo.max_return_frontier_pts, 
+                              "Variance (Max Return)", additional_variables))
+
     return frontiers
 
 

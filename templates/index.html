@@ -167,6 +167,17 @@
                         {{ stats.opt_cvar | default("Could not optimise", true) }}
                     </td>
                 </tr>
+                <tr>
+                    <td>Max Return (same variance)</td>
+                    <td>{{ stats.return }}%</td>
+                    <td>
+                        {% if stats.opt_max_return %}
+                            {{ stats.opt_max_return }}%
+                        {% else %}
+                            Could not optimise
+                        {% endif %}
+                    </td>
+                </tr>
             </tbody>
         </table>
     {%- endmacro %}
@@ -197,42 +208,6 @@
             </div>
         </div>
     </div>
-
-    <!--<p><strong>Expected Return (%):</strong> {{ stats.return }}</p>
-
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>Risk Measure</th>
-                <th>User Portfolio</th>
-                <th>Optimised Portfolio</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>Variance</td>
-                <td>{{ stats.user_variance }}</td>
-                <td>
-                    {{ stats.opt_variance | default("Could not optimise", true)
-                    }}
-                </td>
-            </tr>
-            <tr>
-                <td>VaR</td>
-                <td>{{ stats.user_var }}</td>
-                <td>
-                    {{ stats.opt_var | default("Could not optimise", true) }}
-                </td>
-            </tr>
-            <tr>
-                <td>CVaR</td>
-                <td>{{ stats.user_cvar }}</td>
-                <td>
-                    {{ stats.opt_cvar | default("Could not optimise", true) }}
-                </td>
-            </tr>
-        </tbody>
-    </table>-->
 
     <h3 class="mt-4">Optimal Portfolios</h3>
 
@@ -303,6 +278,20 @@
                 Backtest
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+        <button
+            class="nav-link"
+            id="maxreturn-tab"
+            data-bs-toggle="tab"
+            data-bs-target="#maxreturn"
+            type="button"
+            role="tab"
+            aria-controls="maxreturn"
+            aria-selected="false"
+        >
+            Max Return
+        </button>
+    </li>
     </ul>
     <div class="tab-content" id="myTabContent">
         <div
@@ -369,6 +358,17 @@
             </div>
             {% if not backtest_htmls %}
             <p>No backtest available for the selected inputs or insufficient history.</p>
+            {% endif %}
+        </div>
+        <div
+            class="tab-pane fade"
+            id="maxreturn"
+            role="tabpanel"
+            aria-labelledby="maxreturn-tab"
+        >
+            {% if graph_htmls and graph_htmls[3] %} {{ graph_htmls[3]|safe }} {%
+            else %}
+            <p>No max return graph generated yet.</p>
             {% endif %}
         </div>
     </div>

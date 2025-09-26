@@ -91,7 +91,6 @@ class portfolio():
         else:
             self.rets, self.mu, self.S = None, None, None
 
-
     def _portfolio_var(self, w, alpha=0.05):
         pr = self.rets @ w
         return -np.percentile(pr, alpha * 100)
@@ -101,7 +100,6 @@ class portfolio():
         var = np.percentile(pr, alpha * 100)
         return -pr[pr <= var].mean()
         # return self.rets[self.rets < var].mean().to_numpy()[0]
-
 
     def _portfolio_return(self, w):
         return w @ self.mu
@@ -172,7 +170,6 @@ class portfolio():
 
         return out
 
-
     def _optimize_mv_for_return(self, target_return):
         try:
             ef_mv = EfficientFrontier(self.mu, self.S, weight_bounds=(-1,1))
@@ -240,6 +237,18 @@ class portfolio():
         print(f"_optimize_var_for_return failed after {attempts} attempts for target_return={target_return}; last message: {last_message}")
         return None
 
+    def _optimize_max_return_for_variance(self, target_variance):
+        """Find portfolio with maximum return for given variance constraint."""
+        try:
+            ef_max = EfficientFrontier(self.mu, self.S, weight_bounds=(-1,1))
+            # Use efficient_risk method with target volatility (sqrt of variance)
+            target_volatility = np.sqrt(target_variance)
+            ef_max.efficient_risk(target_volatility)
+            w_max = self._as_series(ef_max.clean_weights())
+            ret_max, vol_max, _ = ef_max.portfolio_performance()
+            return (vol_max**2, 100*ret_max, w_max)  # return variance, not volatility
+        except Exception:
+            return None
 
     def calculate_frontiers(self):
         if self.df.empty or self.mu is None or self.S is None:
@@ -258,13 +267,24 @@ class portfolio():
             res for r in grid
             if (res := self._optimize_var_for_return(r)) is not None
         ]
+        
+        if self.mv_frontier_pts:
+            var_grid = np.linspace(
+                min(pt[0]**2 for pt in self.mv_frontier_pts) + 1e-6,
+                max(pt[0]**2 for pt in self.mv_frontier_pts) - 1e-6,
+                50
+            )
+            self.max_return_frontier_pts = [
+                res for v in var_grid
+                if (res := self._optimize_max_return_for_variance(v)) is not None
+            ]
 
-        # calculate risk metrics and corresponding points on frontiers.
         self.pf_return = self._portfolio_return(self.user_weights)
+        self.pf_variance = self.user_weights.T @ self.S @ self.user_weights        
         self.opt_variance = self._optimize_mv_for_return(self.pf_return)
         self.opt_var = self._optimize_var_for_return(self.pf_return)
         self.opt_cvar = self._optimize_cvar_for_return(self.pf_return)
-
+        self.opt_max_return = self._optimize_max_return_for_variance(self.pf_variance)
 
     def portfolio_metrics(self, df=None):
         weights = self.user_weights
@@ -276,6 +296,7 @@ class portfolio():
             self.use_df(df)
 
         returns = self._portfolio_return(weights)
+        user_variance = weights.T @ self.S @ weights
 
         # calculate user's portfolio volatility
         ef_user = EfficientFrontier(self.mu, self.S)
@@ -284,18 +305,21 @@ class portfolio():
 
         pf_metrics = {
             "return": round(returns*100, 4),
-            "user_variance": user_vol, #weights.T @ self.S @ weights,
+            "user_variance": user_vol, # weights.T @ self.S @ weights,
             "user_var": self._portfolio_var(weights),
             "user_cvar": self._portfolio_cvar(weights),
 
             "opt_variance": self.opt_variance[0] if self.opt_variance else None,
             "opt_var": self.opt_var[0] if self.opt_var else None,
             "opt_cvar": self.opt_cvar[0] if self.opt_cvar else None,
+            "opt_max_return": self.opt_max_return[1] if self.opt_max_return else None,
+            "opt_max_return_variance": self.opt_max_return[0] if self.opt_max_return else None,
 
             "user_weights": weights,
             "opt_variance_weights": self.opt_variance[2] if self.opt_variance else None,
             "opt_var_weights": self.opt_var[2] if self.opt_var else None,
             "opt_cvar_weights": self.opt_cvar[2] if self.opt_cvar else None,
+            "opt_max_return_weights": self.opt_max_return[2] if self.opt_max_return else None,
         }
 
         if df is not None: # restore the old dataframe
