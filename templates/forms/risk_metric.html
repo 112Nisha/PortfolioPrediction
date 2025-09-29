@@ -1,0 +1,64 @@
+<form method="POST" action="{{ url_for('risk_metric') }}" class="p-3 bg-white rounded shadow-sm">
+    <div class="mb-3">
+        <label>Select Risk Metric</label>
+        <select name="risk_metric" class="form-control">
+            <option value="variance">Variance</option>
+            <option value="var">VaR</option>
+            <option value="cvar">CVaR</option>
+        </select>
+    </div>
+    <div class="mb-3">
+        <label>Risk Threshold</label>
+        <input type="number" name="risk_value" step="0.01" class="form-control" required>
+    </div>
+
+    <div id="stocks-risk-container">
+
+        {% if stocks %} {% for i in range(stocks|length) %}
+        <div class="stock-input-group mb-2">
+            <label for="stock{{ i }}" class="form-label visually-hidden">Stock {{ i+1 }}:</label>
+            <select name="stock" id="stock1" class="form-control">
+                <option value="Stock Symbol (e.g., HDFCBANK)">
+                    Select a Stock Symbol
+                </option>
+                {% for s in stock_options %}
+                <option value="{{ s }}" {% if s==stocks[i] %} selected {% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endfor %} {% else %}
+        <div class="stock-input-group mb-2">
+            <select name="stock" class="form-control">
+                <option value="">Select a Stock</option>
+                {% for s in stock_options %}
+                <option value="{{ s }}">{{ s }}</option>
+                {% endfor %}
+            </select>
+            <button type="button" class="btn btn-danger remove-stock-btn">Remove</button>
+        </div>
+        <div class="stock-input-group mb-2">
+            <select name="stock" class="form-control">
+                <option value="">Select a Stock</option>
+                {% for s in stock_options %}
+                <option value="{{ s }}">{{ s }}</option>
+                {% endfor %}
+            </select>
+            <button type="button" class="btn btn-danger remove-stock-btn">Remove</button>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <div class="d-flex justify-content-start align-items-center gap-3 mt-3">
+        <button type="button" id="add-risk-stock-btn" class="btn btn-secondary">
+            Add Stock
+        </button>
+
+        <button type="submit" class="btn btn-primary">
+            Calculate Portfolio
+        </button>
+    </div>
+
+
+    {% include "forms/train_test_inputs.html" %}
+</form>

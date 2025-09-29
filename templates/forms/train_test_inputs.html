@@ -1,0 +1,17 @@
+<div class="d-flex justify-content-start align-items-center gap-3 mt-3">
+    <label class="ms-2">Train months:
+        <input id="train-months" type="number" name="train_months" value="{{ train_months | default(36) }}" min="1"
+            class="form-control d-inline-block" style="width:100px;">
+    </label>
+    <label class="ms-2">Test months:
+        <input id="test-months" type="number" name="test_months" value="{{ test_months | default(3) }}" min="1"
+            class="form-control d-inline-block" style="width:100px;">
+    </label>
+    <div class="ms-3 align-self-center">
+        {% if total_months is defined and total_months %}
+        <small class="text-muted">Available months: <strong id="total-months">{{ total_months }}</strong></small>
+        {% else %}
+        <small class="text-muted">Available months: <strong id="total-months">Unknown</strong></small>
+        {% endif %}
+    </div>
+</div>

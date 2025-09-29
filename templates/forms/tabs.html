@@ -1,0 +1,15 @@
+<ul class="nav nav-tabs" id="inputTabs" role="tablist">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#form1">Mean-Variance</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#form2">Risk Metric</button></li>
+</ul>
+
+<div class="tab-content mt-3">
+  <div class="tab-pane fade show active" id="form1">{% include "forms/mean_variance.html" %}</div>
+  <div class="tab-pane fade" id="form2">{% include "forms/risk_metric.html" %}</div>
+</div>
+
+<select id="stock-options-template" class="d-none">
+  {% for s in stock_options %}
+  <option value="{{ s }}">{{ s }}</option>
+  {% endfor %}
+</select>

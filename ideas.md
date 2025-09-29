@@ -1,15 +1,16 @@
 ## TO-DOs
+- short selling results in could not optimise. Issue with code or params?
+- maximise return for a given risk
+
+- Add docs.
+- Create a maximum limit of 5 stocks and select only from a list of stocks.
+
+
+## DONE
 - Plot the point corresponding to the weights they gave + arrow to the point we recommend.
 - Show the metrics for the recommended portfolio properly.
 - Make sure graphs work for more than 2 stocks.
 - Add backtesting graph
-
-- Add docs.
-- Create a maximum limit of 5 stocks and select only from a list of stocks.
-- Add code to periodically update our data.
-
-
-## DONE
 - Three separate frontier graphs, not one.
 - Create interactive frontiers for variance,var,cvar
 - POSTPROCESS WEIGHTS!!!

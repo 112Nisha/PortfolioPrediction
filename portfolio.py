@@ -137,34 +137,45 @@ class portfolio():
                 pass
             return None
 
-        # end_date = self.full_df.index.max()
-        # start_date = end_date - pd.DateOffset(months=int(months)) + pd.DateOffset(days=1)
-
-        # rets = self.full_df.pct_change().dropna()
-        # rets_sub = rets[rets.index >= start_date]
-        # if rets_sub.empty:
-        #     return None
         old_df = self.df.copy()
         self.use_df(test_df)
 
-        user_w = to_array(weights)
-        variance_w = to_array(self.opt_variance[2])
-        var_w = to_array(self.opt_var[2])
-        cvar_w = to_array(self.opt_cvar[2])
-
         out = {}
-        if user_w is not None:
-            pr_user = self.rets @ (user_w)
-            out['user'] = (1 + pr_user).cumprod()
-        if variance_w is not None:
-            pr_var = self.rets @ (variance_w)
-            out['variance'] = (1 + pr_var).cumprod()
-        if var_w is not None:
-            pr_v = self.rets @ (var_w)
-            out['var'] = (1 + pr_v).cumprod()
-        if cvar_w is not None:
-            pr_c = self.rets @ (cvar_w)
-            out['cvar'] = (1 + pr_c).cumprod()
+
+        try:
+            user_w = to_array(weights)
+            if user_w is not None:
+                pr_user = self.rets @ (user_w)
+                out['user'] = (1 + pr_user).cumprod()
+        except:
+            print("Failed to generate backtest for user portfolio")
+
+
+        try:
+            variance_w = to_array(self.opt_variance[2])
+            if variance_w is not None:
+                pr_var = self.rets @ (variance_w)
+                out['variance'] = (1 + pr_var).cumprod()
+        except:
+            print("Failed to generate backtest for variance opt portfolio")
+
+
+        try:
+            var_w = to_array(self.opt_var[2])
+            if var_w is not None:
+                pr_v = self.rets @ (var_w)
+                out['var'] = (1 + pr_v).cumprod()
+        except:
+            print("Failed to generate backtest for var opt portfolio")
+
+
+        try:
+            cvar_w = to_array(self.opt_cvar[2])
+            if cvar_w is not None:
+                pr_c = self.rets @ (cvar_w)
+                out['cvar'] = (1 + pr_c).cumprod()
+        except:
+            print("Failed to generate backtest for cvar opt portfolio")
 
         self.use_df(old_df)
 
