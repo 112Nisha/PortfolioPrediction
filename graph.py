@@ -83,6 +83,11 @@ def generate_frontier_graph(pfo: portfolio, pf_metrics):
             (pf_metrics['opt_variance'], pf_metrics['return'], pf_metrics['opt_variance_weights'], "Minimum Variance portfolio"),
             (pf_metrics['user_variance'], pf_metrics['return'], pf_metrics['user_weights'], "User portfolio")
         ]
+    elif pf_metrics['opt_max_return']:
+        additional_variables = [
+            (pf_metrics['opt_max_return_variance'], pf_metrics['opt_max_return'], 
+             pf_metrics['opt_max_return_weights'], "Maximum Return portfolio"),
+        ]
     else: additional_variables = None
     # additional_variables = None
     frontiers.append(html_plot(pfo.df.columns, pfo.mv_frontier_pts, "Variance", additional_variables))
@@ -107,18 +112,18 @@ def generate_frontier_graph(pfo: portfolio, pf_metrics):
 
     frontiers.append(html_plot(pfo.df.columns, pfo.cvar_frontier_pts, "CVaR", additional_variables))
 
-    if pf_metrics['opt_max_return']:
-        additional_variables = [
-            (pf_metrics['opt_max_return_variance'], pf_metrics['opt_max_return'], 
-             pf_metrics['opt_max_return_weights'], "Maximum Return portfolio"),
-            (pf_metrics['user_variance'], pf_metrics['return'], 
-             pf_metrics['user_weights'], "User portfolio")
-        ]
-    else: 
-        additional_variables = None
+    # if pf_metrics['opt_max_return']:
+    #     additional_variables = [
+    #         (pf_metrics['opt_max_return_variance'], pf_metrics['opt_max_return'], 
+    #          pf_metrics['opt_max_return_weights'], "Maximum Return portfolio"),
+    #         # (pf_metrics['user_variance'], pf_metrics['return'], 
+    #         #  pf_metrics['user_weights'], "User portfolio")
+    #     ]
+    # else: 
+    #     additional_variables = None
 
-    frontiers.append(html_plot(pfo.df.columns, pfo.max_return_frontier_pts, 
-                              "Variance (Max Return)", additional_variables))
+    # frontiers.append(html_plot(pfo.df.columns, pfo.max_return_frontier_pts, 
+    #                           "Variance (Max Return)", additional_variables))
 
     return frontiers
 

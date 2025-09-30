@@ -1,16 +1,8 @@
-<form method="POST" action="{{ url_for('mean_variance') }}" class="p-3 bg-white rounded shadow-sm">
+<form method="POST" action="{{ url_for('mean_variance') }}" class="p-3 bg-white">
     <div id="stocks-container">
         {% if stocks and weights %} {% for i in range(stocks|length) %}
         <div class="stock-input-group mb-3">
             <label for="stock{{ i }}" class="form-label visually-hidden">Stock {{ i+1 }}:</label>
-            <!--<input
-                    type="text"
-                    name="stock"
-                    id="stock{{ i }}"
-                    placeholder="Stock Symbol (e.g., CIPLA)"
-                    class="form-control"
-                    value="{{ stocks[i] }}"
-                />-->
             <select name="stock" id="stock1" class="form-control">
                 <option value="Stock Symbol (e.g., HDFCBANK)">
                     Select a Stock Symbol

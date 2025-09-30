@@ -10,7 +10,7 @@
 
 <!-- Results only if available -->
 {% if error or stats %}
-  {% include "partials/results.html" %}
+  {% include "partials/results.html" with context %}
 {% endif %}
 
 {% endblock %}

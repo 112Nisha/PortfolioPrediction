@@ -1,0 +1,71 @@
+<h2 class="mb-3 text-primary">Risk Frontiers</h2>
+<ul class="nav nav-tabs" id="myTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="variance-tab" data-bs-toggle="tab" data-bs-target="#variance" type="button"
+            role="tab" aria-controls="variance" aria-selected="true">
+            Variance
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="var-tab" data-bs-toggle="tab" data-bs-target="#var" type="button" role="tab"
+            aria-controls="var" aria-selected="false">
+            VaR
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="cvar-tab" data-bs-toggle="tab" data-bs-target="#cvar" type="button" role="tab"
+            aria-controls="cvar" aria-selected="false">
+            CVaR
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="backtest-tab" data-bs-toggle="tab" data-bs-target="#backtest" type="button"
+            role="tab" aria-controls="backtest" aria-selected="false">
+            Backtest
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="myTabContent">
+    <div class="tab-pane fade show active" id="variance" role="tabpanel" aria-labelledby="variance-tab">
+        {{ graph_htmls[0]|safe }}
+    </div>
+    <div class="tab-pane fade" id="var" role="tabpanel" aria-labelledby="var-tab">
+        {% if graph_htmls and graph_htmls[1] %} {{ graph_htmls[1]|safe }} {% else %}
+        <p>No graph 2 generated yet.</p>
+        {% endif %}
+    </div>
+    <div class="tab-pane fade" id="cvar" role="tabpanel" aria-labelledby="cvar-tab">
+        {% if graph_htmls and graph_htmls[2] %} {{ graph_htmls[2]|safe }} {% else %}
+        <p>No graph 3 generated yet.</p>
+        {% endif %}
+    </div>
+    <div class="tab-pane fade" id="backtest" role="tabpanel" aria-labelledby="backtest-tab">
+        {% if used_train is defined and used_test is defined %}
+        <p>Using last data: train={{ used_train }} months, test={{ used_test }} months</p>
+        {% endif %}
+        <div class="backtest-stack">
+            <div class="mb-4">
+                <h5>1 Month</h5>
+                {% if backtest_htmls and backtest_htmls[0] %} {{ backtest_htmls[0]|safe }} {% else %}
+                <p>No 1M backtest available.</p>
+                {% endif %}
+            </div>
+            <div class="mb-4">
+                <h5>2 Months</h5>
+                {% if backtest_htmls and backtest_htmls[1] %} {{ backtest_htmls[1]|safe }} {% else %}
+                <p>No 2M backtest available.</p>
+                {% endif %}
+            </div>
+            <div class="mb-4">
+                <h5>3 Months</h5>
+                {% if backtest_htmls and backtest_htmls[2] %} {{ backtest_htmls[2]|safe }} {% else %}
+                <p>No 3M backtest available.</p>
+                {% endif %}
+            </div>
+        </div>
+        {% if not backtest_htmls %}
+        <p>No backtest available for the selected inputs or insufficient history.</p>
+        {% endif %}
+    </div>
+</div>

@@ -1,0 +1,61 @@
+{%- macro render_stats_table(stats) -%}
+    {# Get column headers dynamically #}
+    {% set first_item = stats.values()|list|first %}
+    {% set columns = first_item.keys() %}
+
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Risk Measure</th>
+                {%- for col in columns %}
+                    <th>{{ col }}</th>
+                {%- endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {%- for measure, values in stats.items() %}
+                <tr>
+                    <td>{{ measure }}</td>
+                    {%- for col in columns %}
+                        <td>{{ values[col] | default("N/A") }}</td>
+                    {%- endfor %}
+                </tr>
+            {%- endfor %}
+        </tbody>
+    </table>
+{%- endmacro %}
+
+
+<ul class="nav nav-tabs" id="statsTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="train-tab" data-bs-toggle="tab" data-bs-target="#train-tab-pane"
+            type="button" role="tab" aria-controls="train-tab-pane" aria-selected="true">
+            Training Set
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="test-tab" data-bs-toggle="tab" data-bs-target="#test-tab-pane" type="button"
+            role="tab" aria-controls="test-tab-pane" aria-selected="false">
+            Test Set
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="statsTabContent">
+    <div class="tab-pane fade show active" id="train-tab-pane" role="tabpanel" aria-labelledby="train-tab" tabindex="0">
+        <div class="p-3">
+            {{ render_stats_table(stats.train) }}
+        </div>
+    </div>
+    <div class="tab-pane fade" id="test-tab-pane" role="tabpanel" aria-labelledby="test-tab" tabindex="0">
+        <div class="p-3">
+            {{ render_stats_table(stats.test) }}
+        </div>
+    </div>
+</div>
+
+<h3 class="mt-4">Optimal Portfolios</h3>
+{% for label, weights in stats.weights.items() %}
+    <p>{{ label }}</p>
+    <pre><code>{{ weights }}</code></pre>
+{% endfor %}
