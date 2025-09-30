@@ -1,12 +1,31 @@
 <ul class="nav nav-tabs" id="inputTabs" role="tablist">
-  <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#form1">Mean-Variance</button></li>
-  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#form2">Risk Metric</button></li>
+  <li class="nav-item">
+    <button class="nav-link {% if (weights is defined) or (riskvalue is not defined) %}active{% endif %}" id="form1-tab"
+      data-bs-toggle="tab" data-bs-target="#form1" type="button" role="tab" aria-controls="form1"
+      aria-selected="{% if (weights is defined) or (riskvalue is not defined) %}true{% else %}false{% endif %}">
+      Mean-Variance
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link {% if riskvalue is defined %}active{% endif %}" id="form2-tab" data-bs-toggle="tab"
+      data-bs-target="#form2" type="button" role="tab" aria-controls="form2"
+      aria-selected="{% if riskvalue is defined %}true{% else %}false{% endif %}">
+      Risk Metric
+    </button>
+  </li>
 </ul>
 
 <div class="tab-content mt-3">
-  <div class="tab-pane fade show active" id="form1">{% include "forms/mean_variance.html" %}</div>
-  <div class="tab-pane fade" id="form2">{% include "forms/risk_metric.html" %}</div>
+  <div class="tab-pane fade {% if (weights is defined) or (riskvalue is not defined) %}show active{% endif %}"
+    id="form1" role="tabpanel" aria-labelledby="form1-tab">
+    {% include "forms/mean_variance.html" %}
+  </div>
+  <div class="tab-pane fade {% if riskvalue is defined %}show active{% endif %}" id="form2" role="tabpanel"
+    aria-labelledby="form2-tab">
+    {% include "forms/risk_metric.html" %}
+  </div>
 </div>
+
 
 <select id="stock-options-template" class="d-none">
   {% for s in stock_options %}
