@@ -31,9 +31,10 @@ def format_weights_mv(stats):
 
     # create desired table
     table = {
-        "Variance": {"User Portfolio": stats["user_variance"], "Optimised Portfolio": stats["opt_variance"]},
+        "return": stats["return"],
+        "table": {"Variance": {"User Portfolio": stats["user_variance"], "Optimised Portfolio": stats["opt_variance"]},
         "VaR": {"User Portfolio": stats["user_var"], "Optimised Portfolio": stats["opt_var"]},
-        "CVaR": {"User Portfolio": stats["user_cvar"], "Optimised Portfolio": stats["opt_cvar"]},
+        "CVaR": {"User Portfolio": stats["user_cvar"], "Optimised Portfolio": stats["opt_cvar"]},},
     }
 
     return table
@@ -63,9 +64,10 @@ def format_weights_riskm(stats):
 
     # create desired table
     table = {
-        "Variance": {"Optimised Portfolio": stats["user_variance"]},
+        "return": stats["return"],
+        "table": {"Variance": {"Optimised Portfolio": stats["user_variance"]},
         "VaR": {"Optimised Portfolio": stats["user_var"]},
-        "CVaR": {"Optimised Portfolio": stats["user_cvar"]},
+        "CVaR": {"Optimised Portfolio": stats["user_cvar"]},}
     }
 
     return table

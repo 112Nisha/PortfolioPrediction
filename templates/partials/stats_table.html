@@ -1,7 +1,9 @@
 {%- macro render_stats_table(stats) -%}
     {# Get column headers dynamically #}
-    {% set first_item = stats.values()|list|first %}
+    {% set first_item = stats.table.values()|list|first %}
     {% set columns = first_item.keys() %}
+
+    <p><strong>Expected/Average Annual Return (%):</strong> {{ stats.return }}</p>
 
     <table class="table table-bordered">
         <thead>
@@ -13,7 +15,7 @@
             </tr>
         </thead>
         <tbody>
-            {%- for measure, values in stats.items() %}
+            {%- for measure, values in stats.table.items() %}
                 <tr>
                     <td>{{ measure }}</td>
                     {%- for col in columns %}
