@@ -41,31 +41,36 @@
         {% endif %}
     </div>
     <div class="tab-pane fade" id="backtest" role="tabpanel" aria-labelledby="backtest-tab">
-        {% if used_train is defined and used_test is defined %}
-        <p>Using last data: train={{ used_train }} months, test={{ used_test }} months</p>
-        {% endif %}
-        <div class="backtest-stack">
-            <div class="mb-4">
-                <h5>1 Month</h5>
-                {% if backtest_htmls and backtest_htmls[0] %} {{ backtest_htmls[0]|safe }} {% else %}
-                <p>No 1M backtest available.</p>
-                {% endif %}
+        <div class="mt-3">
+            {% if used_train is defined and used_test is defined %}
+            <p>Using last data: train={{ used_train }} months, test={{ used_test }} months</p>
+            {% endif %}
+
+            {% if backtest_plots_data %}
+            {% for period, plots_by_portfolio in backtest_plots_data.items() %}
+            <div class="mb-5">
+                <h3>Backtest: {{ period }}</h3>
+                <div class="row">
+                    {% for portfolio_name, plot_path in plots_by_portfolio.items() %}
+                    {% if plot_path %}
+                    <div class="col-md-6 mb-4"> {# Adjust column size as needed for layout #}
+                        <h5>{{ portfolio_name }}</h5>
+                        <img src="{{ url_for('static', filename=plot_path) }}" class="img-fluid"
+                            alt="{{ portfolio_name }} Backtest for {{ period }}">
+                    </div>
+                    {% else %}
+                    <div class="col-md-6 mb-4">
+                        <h5>{{ portfolio_name }}</h5>
+                        <p>No {{ portfolio_name }} backtest for {{ period }} available.</p>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
             </div>
-            <div class="mb-4">
-                <h5>2 Months</h5>
-                {% if backtest_htmls and backtest_htmls[1] %} {{ backtest_htmls[1]|safe }} {% else %}
-                <p>No 2M backtest available.</p>
-                {% endif %}
-            </div>
-            <div class="mb-4">
-                <h5>3 Months</h5>
-                {% if backtest_htmls and backtest_htmls[2] %} {{ backtest_htmls[2]|safe }} {% else %}
-                <p>No 3M backtest available.</p>
-                {% endif %}
-            </div>
+            {% endfor %}
+            {% else %}
+            <p>No backtests available for the selected inputs or insufficient history.</p>
+            {% endif %}
         </div>
-        {% if not backtest_htmls %}
-        <p>No backtest available for the selected inputs or insufficient history.</p>
-        {% endif %}
     </div>
 </div>

@@ -158,7 +158,7 @@ def mean_variance():
         # try:
         # lazy imports to avoid failing at module import time if heavy deps are missing
         from portfolio import portfolio
-        from graph import generate_frontier_graph, generate_backtests_from_portfolio
+        from graph import generate_frontier_graph, generate_backtrader_plots
 
         pfo = portfolio(stocks, weights)
 
@@ -171,8 +171,9 @@ def mean_variance():
         test_metrics = pfo.portfolio_metrics(test_df) # with test_data
         graph_htmls = generate_frontier_graph(pfo, train_metrics)  # frontier graphs
 
-        # create backtests for 1,2,3 months using full history and current opt weights
-        backtest_htmls = generate_backtests_from_portfolio(pfo, test_df, months_list=(1, 2, 3))
+        # Generate backtrader plots instead of old Plotly ones
+        # We need test_df to determine the date ranges for backtrader
+        backtest_htmls = generate_backtrader_plots(pfo, test_df, train_metrics, months_list=(1, 2, 3))
 
         train_stats = format_weights_mv(train_metrics)
         test_stats = format_weights_mv(test_metrics)
@@ -231,7 +232,7 @@ def risk_metric():
         # try:
         # lazy imports to avoid failing at module import time if heavy deps are missing
         from portfolio import portfolio
-        from graph import generate_frontier_graph, backtest_plot, generate_backtests_from_portfolio
+        from graph import generate_frontier_graph, generate_backtrader_plots
 
         pfo = portfolio(stocks)
 
@@ -254,8 +255,8 @@ def risk_metric():
         test_metrics = pfo.portfolio_metrics(test_df) # with test_data
         graph_htmls = generate_frontier_graph(pfo, train_metrics)  # frontier graphs
 
-        # create backtests for 1,2,3 months using full history and current opt weights
-        backtest_htmls = generate_backtests_from_portfolio(pfo, test_df, months_list=(1, 2, 3))
+        # Generate backtrader plots instead of old Plotly ones
+        backtest_plots_data = generate_backtrader_plots(pfo, test_df, train_metrics, months_list=(1, 2, 3))
 
         train_stats = format_weights_riskm(train_metrics)
         test_stats = format_weights_riskm(test_metrics)
@@ -263,7 +264,7 @@ def risk_metric():
         stats = {"train": train_stats, "test": test_stats, "weights": {"Optimised return": train_metrics["opt_max_return_weights"]}}
 
 
-        return render_template('index.html', stats=stats, graph_htmls=graph_htmls, backtest_htmls=backtest_htmls, used_train=used_train, used_test=used_test, total_months=total_months, train_months=train_months, test_months=test_months, stocks=stocks, stock_options=stocks_list, riskvalue=risk_value)
+        return render_template('index.html', stats=stats, graph_htmls=graph_htmls, backtest_plots_data=backtest_plots_data, used_train=used_train, used_test=used_test, total_months=total_months, train_months=train_months, test_months=test_months, stocks=stocks, stock_options=stocks_list, riskvalue=risk_value)
         # except Exception as e:
         #     # If heavy deps are missing or an error happens, show a friendly error and the GET view data
         #     return render_template('index.html', error=str(e), stock_options=stocks_list)
