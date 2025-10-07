@@ -274,7 +274,7 @@ class portfolio():
                 return None
 
             ef_max = EfficientFrontier(self.mu, self.S, weight_bounds=(-1,1))
-            weights = ef_max.efficient_risk(target_volatility)
+            ef_max.efficient_risk(target_volatility)
 
             w_max = self._as_series(ef_max.clean_weights())
             ret_max, vol_max, _ = ef_max.portfolio_performance()
@@ -286,6 +286,101 @@ class portfolio():
             import traceback
             traceback.print_exc()
             return None
+
+    def optimize_max_return_for_cvar(self, target_cvar, confidence_level=0.95):
+        """Find portfolio with maximum return for given CVaR constraint."""
+        try:
+            # Initialize EfficientCVaR optimizer
+            ef_min = EfficientCVaR(self.mu, self.rets, beta=confidence_level, weight_bounds=(-1, 1))
+            ef_min.min_cvar()
+            _, min_cvar = ef_min.portfolio_performance()
+
+            max_cvar = max(risk for risk, _, _ in self.cvar_frontier_pts)
+
+            print(f"Feasible CVaR range: [{min_cvar:.4f}, {max_cvar:.4f}]")
+            print(f"Target CVaR: {target_cvar:.4f}")
+
+            # Check feasibility
+            if target_cvar < min_cvar or target_cvar > max_cvar:
+                self.opt_max_return = f"Target is outside feasible range: ({min_cvar}, {max_cvar})"
+                return None
+
+            # Optimize for given CVaR constraint
+            ef_opt = EfficientCVaR(self.mu, self.rets, beta=confidence_level, weight_bounds=(-1, 1))
+            ef_opt.efficient_risk(target_cvar)
+
+            w_opt = self._as_series(ef_opt.clean_weights())
+            ret_opt, cvar_opt = ef_opt.portfolio_performance()
+
+            self.opt_max_return = (cvar_opt, 100 * ret_opt, w_opt)
+            return (cvar_opt, 100 * ret_opt, w_opt)
+
+        except Exception as e:
+            self.opt_max_return = e
+            import traceback
+            traceback.print_exc()
+            return None
+
+
+    def optimize_max_return_for_var(self, target_var, confidence_level=0.95):
+        """Find portfolio with maximum return for given VaR constraint."""
+        try:
+            min_var = min(risk for risk, _, _ in self.var_frontier_pts)
+            max_var = max((risk for risk, _, _ in self.var_frontier_pts))
+
+            print(f"Feasible VaR range: [{min_var:.4f}, {max_var:.4f}]")
+            print(f"Target VaR: {target_var:.4f}")
+
+            if target_var < min_var or target_var > max_var:
+                self.opt_max_return = f"Target is outside feasible range: ({min_var}, {max_var})"
+                return None
+        
+            # Optimization settings
+            n_assets = len(self.mu)
+            initial_guess = np.ones(n_assets) / n_assets
+            bounds = tuple((-1, 1) for _ in range(n_assets))
+
+            # Objective: maximize return = minimize negative expected return
+            def neg_expected_return(weights):
+                return -self._portfolio_return(weights)
+
+            # Constraints: sum of weights = 1, VaR <= target
+            constraints = [
+                {'type': 'eq', 'fun': lambda w: np.sum(w) - 1},
+                {'type': 'ineq', 'fun': lambda w: target_var - self._portfolio_var(w)}
+            ]
+
+            result = minimize(
+                neg_expected_return,
+                initial_guess,
+                method='SLSQP',
+                bounds=bounds,
+                constraints=constraints,
+                options={'maxiter': 500, 'disp': False}
+            )
+
+            if not result.success:
+                final_var = self._portfolio_var(result.x)
+                if abs(final_var - target_var) / target_var < 0.01:  # Within 1%
+                    print("Warning: Optimizer didn't converge but solution is close")
+                else:
+                    raise ValueError(f"Optimization failed: {result.message}")
+
+            w_opt = self._as_series(dict(zip(self.mu.index, result.x)))
+            var_opt = self._portfolio_var(result.x)
+            ret_opt = self._portfolio_return(result.x)
+
+            self.opt_max_return_var = (var_opt, 100 * ret_opt, w_opt)
+            return (var_opt, 100 * ret_opt, w_opt)
+
+        
+        except Exception as e:
+            self.opt_max_return = e
+            import traceback
+            traceback.print_exc()
+            return None
+ 
+
 
 
     def calculate_frontiers(self, user_weights=True):

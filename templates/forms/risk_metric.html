@@ -1,15 +1,17 @@
 <form method="POST" action="{{ url_for('risk_metric') }}" class="p-3">
     <div class="mb-3">
         <label>Select Risk Metric</label>
-        <select name="risk_metric" class="form-control">
-            <option value="variance" selected>Volatility</option>
-            <!-- <option value="var">VaR</option>
-            <option value="cvar">CVaR</option> -->
+        <select id="risk_metric" name="risk_metric" class="form-control">
+            <option value="variance" {% if risktype=='variance' %}selected{% endif %}>Volatility</option>
+            <option value="var" {% if risktype=='var' %}selected{% endif %}>VaR</option>
+            <option value="cvar" {% if risktype=='cvar' %}selected{% endif %}>CVaR</option>
         </select>
+
     </div>
     <div class="mb-3">
         <label>Risk Threshold</label>
-        <input type="number" name="risk_value" step="0.01"  class="form-control" placeholder="Enter target risk" {% if riskvalue %} value="{{ riskvalue }}" {% endif %} required>
+        <input type="number" name="risk_value" step="any" class="form-control" placeholder="Enter target risk" {% if
+            riskvalue %} value="{{ riskvalue }}" {% endif %} required>
     </div>
 
     <div id="stocks-risk-container">
