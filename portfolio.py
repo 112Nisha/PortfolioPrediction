@@ -7,46 +7,32 @@ from pypfopt import EfficientFrontier, risk_models, expected_returns
 from scipy.optimize import minimize
 import backtrader as bt
 
-# portfolio.py - new class definition (put this before the portfolio class)
 
-class FixedWeightsStrategy(bt.Strategy):
+class BuyAndHold(bt.Strategy):
     """
-    A simple strategy that applies fixed weights to a portfolio.
+    A simple strategy that applies fixed weights to a portfolio. Rebalancing is never done.
     """
     params = (('weights', None),)
 
     def __init__(self):
         if self.p.weights is None:
-            raise ValueError("Weights must be provided to the FixedWeightsStrategy")
-
-        self.order_targets = {}
-        for i, data in enumerate(self.datas):
-            stock_name = data._name
-            if stock_name not in self.p.weights:
-                # Handle cases where a stock might be in data but not in weights
-                self.order_targets[stock_name] = 0.0
-                print(f"Warning: Stock {stock_name} not found in provided weights, setting target to 0.")
-            else:
-                self.order_targets[stock_name] = self.p.weights[stock_name]
-
-        self.rebalance_date = None # To control rebalancing frequency if needed
-
+            raise ValueError("Weights must be provided to the BuyAndHold strategy")
+        self.invested = False
+        self.values = []
 
     def next(self):
-        if self.rebalance_date is None or self.data.datetime.date() >= self.rebalance_date:
-            for i, data in enumerate(self.datas):
+        if not self.invested:
+            total_value = self.broker.getvalue()
+            for data in self.datas:
                 stock_name = data._name
-                target_weight = self.order_targets.get(stock_name, 0.0)
-                self.order_target_percent(data, target_weight)
+                weight = self.p.weights.get(stock_name, 0.0)
 
-            # Rebalance monthly (or adjust as needed)
-            current_date = self.data.datetime.date()
-            # Set next rebalance date to the first day of the next month
-            # This is a simple monthly rebalance. Can be made more sophisticated.
-            if current_date.month == 12:
-                self.rebalance_date = current_date.replace(year=current_date.year + 1, month=1, day=1)
-            else:
-                self.rebalance_date = current_date.replace(month=current_date.month + 1, day=1)
+                target_value = total_value * weight
+                self.order_target_value(data, target=target_value)
+
+            self.invested = True
+        self.values.append((self.datas[0].datetime.date(0), self.broker.getvalue()))
+
 
 class portfolio():
     def __init__(self, stocks, user_weights=None):
@@ -269,6 +255,7 @@ class portfolio():
         print(f"_optimize_var_for_return failed after {attempts} attempts for target_return={target_return}; last message: {last_message}")
         return None
 
+
     def optimize_max_return_for_volatility(self, target_volatility):
         """Find portfolio with maximum return for given volatility constraint."""
         try:
@@ -366,175 +353,47 @@ class portfolio():
 
         return pf_metrics
 
-    def backtest_series(self, test_df, months=3):
-        """Compute cumulative return series for user & optimized portfolios over
-        the last `months` months from the full history.
 
-        Returns a dict of pandas.Series (keys: 'user','variance','var','cvar') or
-        None when insufficient data.
-        """
-        if self.full_df is None or self.full_df.empty:
-            return None
-
-        weights = self.user_weights
-        # helper to coerce weight containers to numpy arrays aligned with columns
-        def to_array(w):
-            if w is None:
-                return None
-            if isinstance(w, np.ndarray):
-                return w
-            if isinstance(w, pd.Series):
-                return w.reindex(self.full_df.columns).to_numpy()
-            if isinstance(w, dict):
-                return pd.Series(w).reindex(self.full_df.columns).to_numpy()
-            try:
-                arr = np.array(w)
-                if arr.shape[0] == len(self.full_df.columns):
-                    return arr
-            except Exception:
-                pass
-            return None
-
-        old_df = self.df.copy()
-        self.use_df(test_df)
-
-        out = {}
-
-        try:
-            user_w = to_array(weights)
-            if user_w is not None:
-                pr_user = self.rets @ (user_w)
-                out['user'] = (1 + pr_user).cumprod()
-        except:
-            print("Failed to generate backtest for user portfolio")
-
-
-        try:
-            variance_w = to_array(self.opt_variance[2])
-            if variance_w is not None:
-                pr_var = self.rets @ (variance_w)
-                out['variance'] = (1 + pr_var).cumprod()
-        except:
-            print("Failed to generate backtest for variance opt portfolio")
-
-
-        try:
-            var_w = to_array(self.opt_var[2])
-            if var_w is not None:
-                pr_v = self.rets @ (var_w)
-                out['var'] = (1 + pr_v).cumprod()
-        except:
-            print("Failed to generate backtest for var opt portfolio")
-
-
-        try:
-            cvar_w = to_array(self.opt_cvar[2])
-            if cvar_w is not None:
-                pr_c = self.rets @ (cvar_w)
-                out['cvar'] = (1 + pr_c).cumprod()
-        except:
-            print("Failed to generate backtest for cvar opt portfolio")
-
-        self.use_df(old_df)
-
-        return out
-
-    def run_backtest_backtrader(self, weights_dict, start_date=None, end_date=None, plot_filepath="backtest.png", title="Backtest"):
-        """
-        Runs a backtrader backtest for a given set of weights and saves the plot.
-        weights_dict: a dictionary of {stock_name: weight_percentage (0 to 1)}
-        """
+    # TODO: move this to test.py. dataframes can be passed as an argument, as they are the only self parameter used.
+    def run_backtest_backtrader(self, weights_dict, start_date=None, end_date=None):
         cerebro = bt.Cerebro()
+        cerebro.broker.setcash(100000.0)
+        cerebro.broker.set_shortcash(True)
 
-        # Set starting cash
-        cerebro.broker.setcash(100000.0) # $100,000 starting cash
-
-        # Add our strategy
-        cerebro.addstrategy(FixedWeightsStrategy, weights=weights_dict)
+        cerebro.addstrategy(BuyAndHold, weights=weights_dict)
 
         # Add data feeds
-        # Use the test_individual_stock_data which was split earlier
-        data_to_use = self.test_individual_stock_data # This should be the dictionary of DataFrames
-
-        if not data_to_use:
-            print("ERROR: run_backtest_backtrader - No individual stock data available in self.test_individual_stock_data. This should not happen if split_train_test ran correctly.")
-            return None
-
-        print(f"DEBUG: run_backtest_backtrader - Attempting to add data for {len(data_to_use)} stocks for period {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
-
-        # Filter data by start and end dates if provided
-        added_data_count = 0
+        data_to_use = self.test_individual_stock_data
         for stock_name, df in data_to_use.items():
-            if not df.empty:
-                # Ensure the DataFrame index is a DatetimeIndex
-                if not isinstance(df.index, pd.DatetimeIndex):
-                    df.index = pd.to_datetime(df.index)
+            if df.empty:
+                continue
+            if not isinstance(df.index, pd.DatetimeIndex):
+                df.index = pd.to_datetime(df.index)
 
-                # Filter the DataFrame based on start_date and end_date
-                df_filtered = df[(df.index >= start_date) & (df.index <= end_date)]
+            if start_date and end_date:
+                df = df[(df.index >= start_date) & (df.index <= end_date)]
+            if df.empty:
+                continue
 
-                if not df_filtered.empty:
-                    print(f"DEBUG: Adding data for {stock_name}. Dates: {df_filtered.index.min().strftime('%Y-%m-%d')} to {df_filtered.index.max().strftime('%Y-%m-%d')}, Rows: {len(df_filtered)}")
+            df = df.copy()
+            df.columns = [c.lower() for c in df.columns]
+            df = df.reset_index(names=['datetime'])
+            data = bt.feeds.PandasData(
+                dataname=df,
+                datetime='datetime',
+                open='open',
+                high='high',
+                low='low',
+                close='close',
+                volume='volume',
+                openinterest=-1
+            )
+            cerebro.adddata(data, name=stock_name)
 
-                    df_filtered_for_bt = df_filtered.copy()
+        # Run
+        strategies = cerebro.run()
+        strat = strategies[0]
 
-                    # Ensure all OHLCV columns are lowercase first
-                    df_filtered_for_bt.columns = [col.lower() for col in df_filtered_for_bt.columns]
-
-                    # Reset the index, and explicitly name the new datetime column 'datetime'
-                    df_filtered_for_bt = df_filtered_for_bt.reset_index(names=['datetime']) # Names the new column 'datetime'
-
-
-                    data = bt.feeds.PandasData(
-                        dataname=df_filtered_for_bt, # Now has 'datetime' as a regular column
-                        datetime='datetime',         # Refers to the 'datetime' column
-                        open='open',                 # Lowercase column name
-                        high='high',                 # Lowercase column name
-                        low='low',                   # Lowercase column name
-                        close='close',               # Lowercase column name
-                        volume='volume',             # Lowercase column name
-                        openinterest=-1
-                    )
-                    cerebro.adddata(data, name=stock_name)
-                    added_data_count += 1
-                else:
-                    print(f"WARNING: No filtered data for {stock_name} within {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}. Original DF dates: {df.index.min().strftime('%Y-%m-%d')} to {df.index.max().strftime('%Y-%m-%d')}")
-            else:
-                print(f"WARNING: Empty DataFrame for stock {stock_name} in self.test_individual_stock_data, skipping.")
-
-        if added_data_count == 0:
-            print(f"ERROR: run_backtest_backtrader - No data feeds successfully added to Cerebro for period {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}.")
-            return None
-        else:
-            print(f"DEBUG: run_backtest_backtrader - Successfully added {added_data_count} data feeds to Cerebro.")
-
-        # Add observers for plotting
-        cerebro.addobserver(bt.observers.Broker)
-        cerebro.addobserver(bt.observers.Trades)
-        cerebro.addobserver(bt.observers.BuySell)
-        cerebro.addobserver(bt.observers.Value) # Portfolio value over time
-
-        # Run the engine
-        print(f'Running Backtrader Backtest from {start_date} to {end_date} for title: {title}...')
-        cerebro.run()
-
-        # Plotting (requires matplotlib and saves to a file)
-        try:
-            import matplotlib
-            matplotlib.use("Agg")  # prevent GUI popup
-
-            figs = cerebro.plot(style='candlestick', numfigs=1, iplot=False)
-            plt = matplotlib.pyplot
-            plt.close('all')  # close any open figures
-            fig = figs[0][0]
-            fig.suptitle(title, y=1.02)
-            fig.savefig(plot_filepath, bbox_inches='tight', dpi=150)
-            plt.close(fig)
-
-            return plot_filepath
-
-        except Exception as e:
-            print(f"Error during backtrader plotting: {e}")
-            import traceback
-            traceback.print_exc()
-            return None
+        # Return as DataFrame
+        values_df = pd.DataFrame(strat.values, columns=['date', 'value']).set_index('date')
+        return values_df

@@ -77,10 +77,46 @@ def generate_frontier_graph(pfo: portfolio, pf_metrics):
 
     return frontiers
 
-def generate_backtrader_plots(pfo, test_df_for_dates, train_metrics, months_list=(1, 2, 3)):
-    BACKTEST_PLOTS_DIR = os.path.join("static", "backtest_plots")
-    os.makedirs(BACKTEST_PLOTS_DIR, exist_ok=True)
 
+def backtest_plots_from_series(series_dict, title_suffix=None):
+    """Given a dict of series (keys: 'user','variance','var','cvar'),
+    produce an HTML plot similar to backtest_plot. Returns HTML string.
+    """
+    if not series_dict:
+        return None
+
+    traces = []
+    colors = {
+        'user': '#1f77b4',
+        'variance': '#ff7f0e',
+        'var': '#2ca02c',
+        'cvar': '#d62728',
+    }
+
+    hover_tmpl = 'Date: %{x}<br>Cumulative: %{y:.4f}<extra></extra>'
+
+    mapping = [("user", "User Portfolio"), ("variance", "Variance-opt"), ("var", "VaR-opt"), ("cvar", "CVaR-opt")]
+    for key, label in mapping:
+        s = series_dict.get(key)
+        if s is not None:
+            traces.append(go.Scatter(x=s.index, y=s.values, mode='lines+markers', name=label, line=dict(width=2, color=colors.get(key)), marker=dict(size=3), hovertemplate=hover_tmpl))
+
+    if not traces:
+        traces.append(go.Scatter(x=[0, 1], y=[1, 1], mode='lines', name='No data'))
+
+    title = 'Backtest'
+    if title_suffix:
+        title = f"{title} ({title_suffix})"
+
+    layout = go.Layout(title=title, xaxis=dict(title='Date'), yaxis=dict(title='Cumulative Return (base 1)'), legend=dict(orientation='h', x=0, y=1.1), margin=dict(l=40, r=40, t=60, b=40))
+    fig = go.Figure(data=traces, layout=layout)
+    return fig.to_html(include_plotlyjs=False, full_html=False)
+
+
+def generate_backtrader_plots(pfo, test_df_for_dates, train_metrics, months_list=(1, 2, 3)):
+    """
+    Generates Plotly HTML backtest charts for each period and portfolio type.
+    """
     if test_df_for_dates.empty:
         print("Warning: Test DataFrame empty, cannot generate backtrader plots.")
         return {}
@@ -97,45 +133,41 @@ def generate_backtrader_plots(pfo, test_df_for_dates, train_metrics, months_list
         return None
 
     all_weights = {
-        "User Portfolio": safe_to_dict(train_metrics.get("user_weights")),
-        "Variance-Optimised": safe_to_dict(train_metrics.get("opt_variance_weights")),
-        "VaR-Optimised": safe_to_dict(train_metrics.get("opt_var_weights")),
-        "CVaR-Optimised": safe_to_dict(train_metrics.get("opt_cvar_weights")),
-        "Max Return for Target Risk": safe_to_dict(train_metrics.get("opt_max_return_weights")),
+        "user": safe_to_dict(train_metrics.get("user_weights")),
+        "variance": safe_to_dict(train_metrics.get("opt_variance_weights")),
+        "var": safe_to_dict(train_metrics.get("opt_var_weights")),
+        "cvar": safe_to_dict(train_metrics.get("opt_cvar_weights")),
     }
 
-    period_plots = {}
+    html_plots = {}
 
     for months in months_list:
         month_label = f"{months}M"
-        period_plots[month_label] = {}
+        html_plots[month_label] = {}
         backtest_start = max(end_date - pd.DateOffset(months=months), start_date)
 
         if backtest_start >= end_date:
-            for label in all_weights:
-                period_plots[month_label][label] = None
             continue
 
-        for label, weights_dict in all_weights.items():
-            if not weights_dict:
-                period_plots[month_label][label] = None
+        # Collect series for all portfolios
+        series_dict = {}
+        for key, weights in all_weights.items():
+            if not weights:
                 continue
-
-            filename = f"{label.replace(' ', '_').lower()}_{months}m_{pd.Timestamp.now().strftime('%Y%m%d%H%M%S')}.png"
-            plot_path = os.path.join(BACKTEST_PLOTS_DIR, filename)
-
             try:
-                result_path = pfo.run_backtest_backtrader(
-                    weights_dict, backtest_start, end_date,
-                    plot_filepath=plot_path, title=f"{label} ({months}M)"
-                )
-                if result_path:
-                    period_plots[month_label][label] = os.path.relpath(result_path, 'static')
-                else:
-                    period_plots[month_label][label] = None
+                df = pfo.run_backtest_backtrader(weights, backtest_start, end_date)
+                if df is not None and not df.empty:
+                    series = df["value"] / df["value"].iloc[0]
+                    series_dict[key] = series
             except Exception as e:
-                print(f"Error generating {label} {months}M backtest: {e}")
+                print(f"Error in backtest for {key}: {e}")
                 import traceback; traceback.print_exc()
-                period_plots[month_label][label] = None
 
-    return period_plots
+        # Convert to HTML plot
+        if series_dict:
+            html = backtest_plots_from_series(series_dict, title_suffix=month_label)
+            html_plots[month_label] = html
+        else:
+            html_plots[month_label] = None
+
+    return html_plots

@@ -173,7 +173,7 @@ def mean_variance():
 
         # Generate backtrader plots instead of old Plotly ones
         # We need test_df to determine the date ranges for backtrader
-        backtest_htmls = generate_backtrader_plots(pfo, test_df, train_metrics, months_list=(1, 2, 3))
+        backtest_plots_data = generate_backtrader_plots(pfo, test_df, train_metrics, months_list=(1, 2, 3))
 
         train_stats = format_weights_mv(train_metrics)
         test_stats = format_weights_mv(test_metrics)
@@ -187,7 +187,7 @@ def mean_variance():
             }
         }
 
-        return render_template('index.html', stats=stats, graph_htmls=graph_htmls, backtest_htmls=backtest_htmls, used_train=used_train, used_test=used_test, total_months=total_months, train_months=train_months, test_months=test_months, stocks=stocks, weights=weights, stock_options=stocks_list)
+        return render_template('index.html', stats=stats, graph_htmls=graph_htmls, backtest_plots_data=backtest_plots_data, used_train=used_train, used_test=used_test, total_months=total_months, train_months=train_months, test_months=test_months, stocks=stocks, weights=weights, stock_options=stocks_list)
         # except Exception as e:
         #     # If heavy deps are missing or an error happens, show a friendly error and the GET view data
         #     return render_template('index.html', error=str(e), stock_options=stocks_list)

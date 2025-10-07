@@ -47,30 +47,24 @@
             {% endif %}
 
             {% if backtest_plots_data %}
-            {% for period, plots_by_portfolio in backtest_plots_data.items() %}
+            {% for period, html_plot in backtest_plots_data.items() %}
             <div class="mb-5">
                 <h3>Backtest: {{ period }}</h3>
-                <div class="row">
-                    {% for portfolio_name, plot_path in plots_by_portfolio.items() %}
-                    {% if plot_path %}
-                    <div class="col-md-6 mb-4"> {# Adjust column size as needed for layout #}
-                        <h5>{{ portfolio_name }}</h5>
-                        <img src="{{ url_for('static', filename=plot_path) }}" class="img-fluid"
-                            alt="{{ portfolio_name }} Backtest for {{ period }}">
-                    </div>
-                    {% else %}
-                    <div class="col-md-6 mb-4">
-                        <h5>{{ portfolio_name }}</h5>
-                        <p>No {{ portfolio_name }} backtest for {{ period }} available.</p>
-                    </div>
-                    {% endif %}
-                    {% endfor %}
+
+                {% if html_plot %}
+                <!-- Render Plotly HTML safely -->
+                <div class="plotly-container">
+                    {{ html_plot | safe }}
                 </div>
+                {% else %}
+                <p>No backtest available for {{ period }}.</p>
+                {% endif %}
             </div>
             {% endfor %}
             {% else %}
             <p>No backtests available for the selected inputs or insufficient history.</p>
             {% endif %}
+
         </div>
     </div>
 </div>
