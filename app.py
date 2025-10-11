@@ -6,7 +6,6 @@ from datetime import datetime
 app = Flask(__name__)
 data_directory = './data'  # Replace with the desired path
 
-
 def format_weights_mv(stats):
     """Normalize/format weight-containing entries in stats for display.
 
@@ -29,16 +28,33 @@ def format_weights_mv(stats):
             except Exception:
                 stats[p] = str(w)
 
+    for p in ["opt_sharpe_weights", "opt_maxdd_weights"]:
+        if stats.get(p) is None:
+            stats[p] = "Could not optimise"
+        else:
+            w = stats[p]
+            try:
+                if isinstance(w, dict):
+                    stats[p] = ", ".join(f"{k}: {v:.4f}" for k, v in w.items())
+                elif hasattr(w, 'items'):
+                    stats[p] = ", ".join(f"{k}: {v:.4f}" for k, v in w.items())
+                else:
+                    stats[p] = str(w)
+            except Exception:
+                stats[p] = str(w)
+
     # create desired table
     table = {
         "return": stats["return"],
-        "table": {"Variance": {"User Portfolio": stats["user_variance"], "Optimised Portfolio": stats["opt_variance"]},
-        "VaR": {"User Portfolio": stats["user_var"], "Optimised Portfolio": stats["opt_var"]},
-        "CVaR": {"User Portfolio": stats["user_cvar"], "Optimised Portfolio": stats["opt_cvar"]},},
+        "table": {
+            "Variance": {"User Portfolio": stats["user_variance"], "Optimised Portfolio": stats["opt_variance"]},
+            "VaR": {"User Portfolio": stats["user_var"], "Optimised Portfolio": stats["opt_var"]},
+            "CVaR": {"User Portfolio": stats["user_cvar"], "Optimised Portfolio": stats["opt_cvar"]},
+            "Sharpe Ratio": {"User Portfolio": stats["user_sharpe"], "Optimised Portfolio": stats["opt_sharpe"]},
+            "Max Drawdown": {"User Portfolio": stats["user_maxdd"], "Optimised Portfolio": stats["opt_maxdd"]},
+        },
     }
-
     return table
-
 
 def format_weights_riskm(stats):
     """Normalize/format weight-containing entries in stats for display.
@@ -65,13 +81,15 @@ def format_weights_riskm(stats):
     # create desired table
     table = {
         "return": stats["return"],
-        "table": {"Variance": {"Optimised Portfolio": stats["user_variance"]},
-        "VaR": {"Optimised Portfolio": stats["user_var"]},
-        "CVaR": {"Optimised Portfolio": stats["user_cvar"]},}
+        "table": {
+            "Variance": {"Optimised Portfolio": stats["user_variance"]},
+            "VaR": {"Optimised Portfolio": stats["user_var"]},
+            "CVaR": {"Optimised Portfolio": stats["user_cvar"]},
+            "Sharpe Ratio": {"Optimised Portfolio": stats["user_sharpe"]},
+            "Max Drawdown": {"Optimised Portfolio": stats["user_maxdd"]},
+        }
     }
-
     return table
-
 
 @app.route('/', methods=['GET'])
 def index():
@@ -117,7 +135,6 @@ def index():
         total_months = None
 
     return render_template('index.html', stock_options=stocks_list, total_months=total_months)
-
 
 @app.route('/mean_variance', methods=['POST'])
 def mean_variance():
@@ -186,10 +203,11 @@ def mean_variance():
         "weights": {
             "Variance-Optimised Weights": train_metrics["opt_variance_weights"],
             "VaR-Optimised Weights": train_metrics["opt_var_weights"],
-            "CVaR-Optimised Weights": train_metrics["opt_cvar_weights"]
+            "CVaR-Optimised Weights": train_metrics["opt_cvar_weights"],
+            "Sharpe-Optimised Weights": train_metrics["opt_sharpe_weights"],
+            "MaxDD-Optimised Weights": train_metrics["opt_maxdd_weights"]
         }
     }
-
     return render_template('index.html', stats=stats, graph_htmls=graph_htmls, backtest_plots_data=backtest_plots_data, used_train=used_train, used_test=used_test, total_months=total_months, train_months=train_months, test_months=test_months, stocks=stocks, weights=weights, stock_options=stocks_list)
     # except Exception as e:
     #     # If heavy deps are missing or an error happens, show a friendly error and the GET view data
@@ -256,6 +274,10 @@ def risk_metric():
     elif risk_type == 'var':
         print("CALLING VAR")
         opt_w = pfo.optimize_max_return_for_var(risk_value)
+    elif risk_type == 'sharpe':
+        opt_w = pfo.optimize_max_return_for_sharpe(risk_value)
+    elif risk_type == 'maxdd':
+        opt_w = pfo.optimize_max_return_for_maxdd(risk_value)
     else:
         return render_template('index.html', error=f"Invalid risk metric {risk_type}", stocks=stocks, stock_options=stocks_list, riskvalue=risk_value)
     print(opt_w)
@@ -285,7 +307,6 @@ def risk_metric():
     #     return render_template('index.html', error=str(e), stock_options=stocks_list)
 
     # return render_template('index.html', stock_options=stocks_list, total_months=total_months)
-
 
 @app.route('/about')
 def about():

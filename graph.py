@@ -75,8 +75,23 @@ def generate_frontier_graph(pfo: portfolio, pf_metrics):
         add_vars = None
     frontiers.append(html_plot(pfo.df.columns, pfo.cvar_frontier_pts, "CVaR", add_vars))
 
-    return frontiers
+    if pf_metrics['opt_sharpe']:
+        add_vars = [
+            (pf_metrics['opt_sharpe'], pf_metrics['return'], pf_metrics['opt_sharpe_weights'], "Minimum Sharpe portfolio"),
+            (-pfo._portfolio_sharpe(pf_metrics['user_weights']), pf_metrics['return'], pf_metrics['user_weights'], "User portfolio")]
+    else:
+        add_vars = None
+    frontiers.append(html_plot(pfo.df.columns, pfo.sharpe_frontier_pts, "Sharpe Ratio", add_vars))
 
+    if pf_metrics['opt_maxdd']:
+        add_vars = [
+            (pf_metrics['opt_maxdd'], pf_metrics['return'], pf_metrics['opt_maxdd_weights'], "Minimum MaxDD portfolio"),
+            (pf_metrics['user_maxdd'], pf_metrics['return'], pf_metrics['user_weights'], "User portfolio")]
+    else:
+        add_vars = None
+    frontiers.append(html_plot(pfo.df.columns, pfo.maxdd_frontier_pts, "Max Drawdown", add_vars))
+
+    return frontiers
 
 def backtest_plots_from_series(series_dict, title_suffix=None):
     """Given a dict of series (keys: 'user','variance','var','cvar'),
@@ -91,11 +106,13 @@ def backtest_plots_from_series(series_dict, title_suffix=None):
         'variance': '#ff7f0e',
         'var': '#2ca02c',
         'cvar': '#d62728',
+        'sharpe': '#9467bd',
+        'maxdd': '#8c564b',
     }
 
     hover_tmpl = 'Date: %{x}<br>Cumulative: %{y:.4f}<extra></extra>'
 
-    mapping = [("user", "User Portfolio"), ("variance", "Variance-opt"), ("var", "VaR-opt"), ("cvar", "CVaR-opt")]
+    mapping = [("user", "User Portfolio"), ("variance", "Variance-opt"), ("var", "VaR-opt"), ("cvar", "CVaR-opt"), ("sharpe", "Sharpe-opt"), ("maxdd", "MaxDD-opt")]
     for key, label in mapping:
         s = series_dict.get(key)
         if s is not None:
@@ -111,7 +128,6 @@ def backtest_plots_from_series(series_dict, title_suffix=None):
     layout = go.Layout(title=title, xaxis=dict(title='Date'), yaxis=dict(title='Cumulative Return (base 1)'), legend=dict(orientation='h', x=0, y=1.1), margin=dict(l=40, r=40, t=60, b=40))
     fig = go.Figure(data=traces, layout=layout)
     return fig.to_html(include_plotlyjs=False, full_html=False)
-
 
 def generate_backtrader_plots(pfo, test_df_for_dates, train_metrics, months_list=(1, 2, 3)):
     """
@@ -137,6 +153,8 @@ def generate_backtrader_plots(pfo, test_df_for_dates, train_metrics, months_list
         "variance": safe_to_dict(train_metrics.get("opt_variance_weights")),
         "var": safe_to_dict(train_metrics.get("opt_var_weights")),
         "cvar": safe_to_dict(train_metrics.get("opt_cvar_weights")),
+        "sharpe": safe_to_dict(train_metrics.get("opt_sharpe_weights")),
+        "maxdd": safe_to_dict(train_metrics.get("opt_maxdd_weights")),
     }
 
     html_plots = {}

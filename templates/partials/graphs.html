@@ -19,6 +19,18 @@
         </button>
     </li>
     <li class="nav-item" role="presentation">
+        <button class="nav-link" id="sharpe-tab" data-bs-toggle="tab" data-bs-target="#sharpe" type="button" role="tab"
+            aria-controls="sharpe" aria-selected="false">
+            Sharpe Ratio
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="maxdd-tab" data-bs-toggle="tab" data-bs-target="#maxdd" type="button" role="tab"
+            aria-controls="maxdd" aria-selected="false">
+            Max Drawdown
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
         <button class="nav-link" id="backtest-tab" data-bs-toggle="tab" data-bs-target="#backtest" type="button"
             role="tab" aria-controls="backtest" aria-selected="false">
             Backtest
@@ -38,6 +50,20 @@
     <div class="tab-pane fade" id="cvar" role="tabpanel" aria-labelledby="cvar-tab">
         {% if graph_htmls and graph_htmls[2] %} {{ graph_htmls[2]|safe }} {% else %}
         <p>No graph 3 generated yet.</p>
+        {% endif %}
+    </div>
+    <div class="tab-pane fade" id="sharpe" role="tabpanel" aria-labelledby="sharpe-tab">
+        {% if graph_htmls and graph_htmls|length > 3 and graph_htmls[3] %}
+            {{ graph_htmls[3]|safe }}
+        {% else %}
+            <p>No Sharpe Ratio frontier generated yet.</p>
+        {% endif %}
+    </div>
+    <div class="tab-pane fade" id="maxdd" role="tabpanel" aria-labelledby="maxdd-tab">
+        {% if graph_htmls and graph_htmls|length > 4 and graph_htmls[4] %}
+            {{ graph_htmls[4]|safe }}
+        {% else %}
+            <p>No Max Drawdown frontier generated yet.</p>
         {% endif %}
     </div>
     <div class="tab-pane fade" id="backtest" role="tabpanel" aria-labelledby="backtest-tab">
