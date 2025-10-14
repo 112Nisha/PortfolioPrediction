@@ -7,6 +7,50 @@ from pypfopt import EfficientFrontier, risk_models, expected_returns
 from scipy.optimize import minimize
 import backtrader as bt
 
+from pypfopt import expected_returns, risk_models
+
+def compute_mu_and_cov(df, mean_method, cov_method, market_prices=None, risk_free_rate=0.0):
+    """Compute expected returns (mu) and covariance matrix (S) based on chosen methods."""
+
+    # --- MEAN (EXPECTED RETURN) ---
+    if mean_method == "mean_historical":
+        mu = expected_returns.mean_historical_return(df)
+    elif mean_method == "ewm_mean_historical":
+        mu = expected_returns.ema_historical_return(df)
+    elif mean_method == "capm":
+        # if market_prices is None:
+        #     raise ValueError("CAPM requires market index prices (market_prices).")
+        mu = expected_returns.capm_return(df, market_prices=market_prices, risk_free_rate=risk_free_rate)
+    else:
+        raise ValueError(f"Unknown mean method: {mean_method}")
+
+    # --- COVARIANCE / RISK MATRIX ---
+    if cov_method == "sample":
+        S = risk_models.sample_cov(df)
+    elif cov_method == "semicovariance":
+        S = risk_models.semicovariance(df)
+    elif cov_method == "ewm":
+        S = risk_models.exp_cov(df)
+    elif cov_method == "mcd":
+        S = risk_models.min_cov_determinant(df)
+    elif cov_method == "ledoit_wolf":
+        S = risk_models.CovarianceShrinkage(df).ledoit_wolf()
+    elif cov_method == "oracle_approx":
+        S = risk_models.CovarianceShrinkage(df).oas()
+    elif cov_method == "manual_shrinkage":
+        shrinkage = risk_models.CovarianceShrinkage(df)
+        S = shrinkage.shrinkage(0.1)  # You can tune this shrinkage intensity
+    elif cov_method == "fix_psd":
+        raw_cov = risk_models.sample_cov(df)
+        S = risk_models.fix_nonpositive_semidefinite(raw_cov)
+    elif cov_method == "cov_to_corr":
+        raw_cov = risk_models.sample_cov(df)
+        S = risk_models.cov_to_corr(raw_cov)
+    else:
+        raise ValueError(f"Unknown covariance method: {cov_method}")
+
+    return mu, S
+
 
 class BuyAndHold(bt.Strategy):
     """
@@ -35,7 +79,7 @@ class BuyAndHold(bt.Strategy):
 
 
 class portfolio():
-    def __init__(self, stocks, user_weights=None):
+    def __init__(self, stocks, mean_method, cov_method, user_weights=None):
         self.stocks = stocks
 
         if user_weights is not None:
@@ -45,12 +89,16 @@ class portfolio():
         # will be the working dataframe used for optimization (usually train set).
         self.full_df = self._load_data()  # full history
         self.df = self.full_df.copy()
-
+        self.mean_method = mean_method
+        self.cov_method = cov_method
         self.mu, self.S, self.rets = None, None, None
         if not self.df.empty:
-            self.rets = self.df.pct_change().dropna()
-            self.mu = expected_returns.mean_historical_return(self.df)
-            self.S = risk_models.sample_cov(self.df)
+            self.rets = expected_returns.returns_from_prices(self.df.dropna())
+            # self.rets = self.df.pct_change().dropna()
+            # self.mu = expected_returns.mean_historical_return(self.df)
+            # self.S = risk_models.sample_cov(self.df)
+            self.mu, self.S = compute_mu_and_cov(self.df, mean_method, cov_method)
+
 
         self.mv_frontier_pts = []
         self.cvar_frontier_pts = []
@@ -64,7 +112,8 @@ class portfolio():
         self.opt_var = False
         self.opt_cvar = False
         self.opt_max_return = False
-        self.pf_metrics = {}
+        self.opt_for_return = {'variance': None, 'var': None, 'cvar': None, 'sharpe': None, 'maxdd': None}
+        self.opt_for_risk = {'variance': None, 'var': None, 'cvar': None, 'sharpe': None, 'maxdd': None}
 
     def _load_data(self):
         data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "data"))
@@ -166,16 +215,24 @@ class portfolio():
         Keep self.full_df unchanged so backtests operate on the full history.
         """
         self.df = df.copy()
-        if not self.df.empty:
-            self.rets = self.df.pct_change().dropna() # Ensure rets is updated
-            self.mu = expected_returns.mean_historical_return(self.df)
-            self.S = risk_models.sample_cov(self.df)
-        else:
-            self.rets, self.mu, self.S = None, None, None
+        # if not self.df.empty:
+        self.rets = expected_returns.returns_from_prices(self.df.dropna()) # self.df.pct_change().dropna() # Ensure rets is updated
+        self.mu, self.S = compute_mu_and_cov(self.df, self.mean_method, self.cov_method)
+
 
     def _as_series(self, w):
         index = self.mu.index
         return pd.Series(w, index=index).sort_index().round(2)
+
+
+    def _portfolio_return(self, w):
+        return w @ self.mu
+
+    def _portfolio_vol(self, w,):
+        ef_user = EfficientFrontier(self.mu, self.S)
+        ef_user.set_weights(dict(zip(self.stocks, w)))
+        _, user_vol, _ = ef_user.portfolio_performance(verbose=False)
+        return user_vol
 
     def _portfolio_var(self, w, alpha=0.05):
         pr = self.rets @ w
@@ -187,9 +244,6 @@ class portfolio():
         return -pr[pr <= var].mean()
         # return self.rets[self.rets < var].mean().to_numpy()[0]
 
-    def _portfolio_return(self, w):
-        return w @ self.mu
-    
     def _portfolio_sharpe(self, w, risk_free_rate=0.0):
         """Calculate negative Sharpe ratio (for minimization)"""
         ret = self._portfolio_return(w)
@@ -205,6 +259,7 @@ class portfolio():
         running_max = cumulative.expanding().max()
         drawdown = (cumulative - running_max) / running_max
         return drawdown.min()  # Most negative value
+
 
     def _optimize_mv_for_return(self, target_return):
         try:
@@ -273,71 +328,6 @@ class portfolio():
         print(f"_optimize_var_for_return failed after {attempts} attempts for target_return={target_return}; last message: {last_message}")
         return None
 
-    def optimize_max_return_for_volatility(self, target_volatility):
-        """Find portfolio with maximum return for given volatility constraint."""
-        try:
-            # First, check the min/max possible volatility
-            ef_min = EfficientFrontier(self.mu, self.S, weight_bounds=(-1,1))
-            ef_min.min_volatility()
-            _, min_vol, _ = ef_min.portfolio_performance()
-
-            max_ret_vol = max(risk for risk, _, _ in self.mv_frontier_pts)
-
-            print(f"Feasible volatility range: [{min_vol:.4f}, {max_ret_vol:.4f}]")
-            print(f"Target volatility: {target_volatility:.4f}")
-
-            if target_volatility < min_vol or target_volatility > max_ret_vol:
-                self.opt_max_return = f"Target is outside feasible range: ({min_vol}, {max_ret_vol})"
-                return None
-
-            ef_max = EfficientFrontier(self.mu, self.S, weight_bounds=(-1,1))
-            ef_max.efficient_risk(target_volatility)
-
-            w_max = self._as_series(ef_max.clean_weights())
-            ret_max, vol_max, _ = ef_max.portfolio_performance()
-            self.opt_max_return = (vol_max, 100*ret_max, w_max)
-
-            return (vol_max, 100*ret_max, w_max)
-        except Exception as e:
-            self.opt_max_return = e
-            import traceback
-            traceback.print_exc()
-            return None
-
-    def optimize_max_return_for_cvar(self, target_cvar, confidence_level=0.95):
-        """Find portfolio with maximum return for given CVaR constraint."""
-        try:
-            # Initialize EfficientCVaR optimizer
-            ef_min = EfficientCVaR(self.mu, self.rets, beta=confidence_level, weight_bounds=(-1, 1))
-            ef_min.min_cvar()
-            _, min_cvar = ef_min.portfolio_performance()
-
-            max_cvar = max(risk for risk, _, _ in self.cvar_frontier_pts)
-
-            print(f"Feasible CVaR range: [{min_cvar:.4f}, {max_cvar:.4f}]")
-            print(f"Target CVaR: {target_cvar:.4f}")
-
-            # Check feasibility
-            if target_cvar < min_cvar or target_cvar > max_cvar:
-                self.opt_max_return = f"Target is outside feasible range: ({min_cvar}, {max_cvar})"
-                return None
-
-            # Optimize for given CVaR constraint
-            ef_opt = EfficientCVaR(self.mu, self.rets, beta=confidence_level, weight_bounds=(-1, 1))
-            ef_opt.efficient_risk(target_cvar)
-
-            w_opt = self._as_series(ef_opt.clean_weights())
-            ret_opt, cvar_opt = ef_opt.portfolio_performance()
-
-            self.opt_max_return = (cvar_opt, 100 * ret_opt, w_opt)
-            return (cvar_opt, 100 * ret_opt, w_opt)
-
-        except Exception as e:
-            self.opt_max_return = e
-            import traceback
-            traceback.print_exc()
-            return None
-
     def _optimize_sharpe_for_return(self, target_return):
         """Optimize for maximum Sharpe ratio at given return level"""
         num_assets = len(self.mu)
@@ -403,6 +393,72 @@ class portfolio():
                 continue
         
         return None
+
+
+    def optimize_max_return_for_volatility(self, target_volatility):
+        """Find portfolio with maximum return for given volatility constraint."""
+        try:
+            # First, check the min/max possible volatility
+            ef_min = EfficientFrontier(self.mu, self.S, weight_bounds=(-1,1))
+            ef_min.min_volatility()
+            _, min_vol, _ = ef_min.portfolio_performance()
+
+            max_ret_vol = max(risk for risk, _, _ in self.mv_frontier_pts)
+
+            print(f"Feasible volatility range: [{min_vol:.4f}, {max_ret_vol:.4f}]")
+            print(f"Target volatility: {target_volatility:.4f}")
+
+            if target_volatility < min_vol or target_volatility > max_ret_vol:
+                self.opt_max_return = f"Target is outside feasible range: ({min_vol}, {max_ret_vol})"
+                return None
+
+            ef_max = EfficientFrontier(self.mu, self.S, weight_bounds=(-1,1))
+            ef_max.efficient_risk(target_volatility)
+
+            w_max = self._as_series(ef_max.clean_weights())
+            ret_max, vol_max, _ = ef_max.portfolio_performance()
+            self.opt_max_return = (vol_max, 100*ret_max, w_max)
+
+            return (vol_max, 100*ret_max, w_max)
+        except Exception as e:
+            self.opt_max_return = e
+            import traceback
+            traceback.print_exc()
+            return None
+
+    def optimize_max_return_for_cvar(self, target_cvar, confidence_level=0.95):
+        """Find portfolio with maximum return for given CVaR constraint."""
+        try:
+            # Initialize EfficientCVaR optimizer
+            ef_min = EfficientCVaR(self.mu, self.rets, beta=confidence_level, weight_bounds=(-1, 1))
+            ef_min.min_cvar()
+            _, min_cvar = ef_min.portfolio_performance()
+
+            max_cvar = max(risk for risk, _, _ in self.cvar_frontier_pts)
+
+            print(f"Feasible CVaR range: [{min_cvar:.4f}, {max_cvar:.4f}]")
+            print(f"Target CVaR: {target_cvar:.4f}")
+
+            # Check feasibility
+            if target_cvar < min_cvar or target_cvar > max_cvar:
+                self.opt_max_return = f"Target is outside feasible range: ({min_cvar}, {max_cvar})"
+                return None
+
+            # Optimize for given CVaR constraint
+            ef_opt = EfficientCVaR(self.mu, self.rets, beta=confidence_level, weight_bounds=(-1, 1))
+            ef_opt.efficient_risk(target_cvar)
+
+            w_opt = self._as_series(ef_opt.clean_weights())
+            ret_opt, cvar_opt = ef_opt.portfolio_performance()
+
+            self.opt_max_return = (cvar_opt, 100 * ret_opt, w_opt)
+            return (cvar_opt, 100 * ret_opt, w_opt)
+
+        except Exception as e:
+            self.opt_max_return = e
+            import traceback
+            traceback.print_exc()
+            return None
 
     def optimize_max_return_for_var(self, target_var, confidence_level=0.95):
         """Find portfolio with maximum return for given VaR constraint."""
@@ -569,7 +625,8 @@ class portfolio():
             traceback.print_exc()
             return None
 
-    def calculate_frontiers(self, user_weights=True):
+
+    def calculate_frontiers(self):
         if self.df.empty or self.mu is None or self.S is None:
             return
 
@@ -594,14 +651,34 @@ class portfolio():
             res for r in grid
             if (res := self._optimize_maxdd_for_return(r)) is not None
         ]
-     
-        if user_weights:
+
+    def optimize_user_portfolio(self, ret=True, risk=True):
+        # original metrics
+        w = self.user_weights
+
+        # optimised for return
+        if ret:
             pf_return = self._portfolio_return(self.user_weights)
-            self.opt_variance = self._optimize_mv_for_return(pf_return)
-            self.opt_var = self._optimize_var_for_return(pf_return)
-            self.opt_cvar = self._optimize_cvar_for_return(pf_return)
-            self.opt_sharpe = self._optimize_sharpe_for_return(pf_return)
-            self.opt_maxdd = self._optimize_maxdd_for_return(pf_return)
+            self.opt_for_return['variance'] = self._optimize_mv_for_return(pf_return)
+            self.opt_for_return['var'] = self._optimize_var_for_return(pf_return)
+            self.opt_for_return['cvar'] = self._optimize_cvar_for_return(pf_return)
+            self.opt_for_return['sharpe'] = self._optimize_sharpe_for_return(pf_return)
+            self.opt_for_return['maxdd'] = self._optimize_maxdd_for_return(pf_return)
+
+        # optimised for risk
+        if risk:
+            vol = self._portfolio_vol(w)
+            var = self._portfolio_var(w)
+            cvar = self._portfolio_cvar(w)
+            sharpe = self._portfolio_sharpe(w)
+            mdd = self._portfolio_max_drawdown(w)
+
+            self.opt_for_risk['variance'] = self.optimize_max_return_for_volatility(vol)
+            self.opt_for_risk['var'] = self.optimize_max_return_for_cvar(cvar)
+            self.opt_for_risk['cvar'] = self.optimize_max_return_for_var(var)
+            self.opt_for_risk['sharpe'] = self.optimize_max_return_for_sharpe(sharpe)
+            self.opt_for_risk['maxdd'] = self.optimize_max_return_for_maxdd(mdd)
+
 
     def portfolio_metrics(self, df=None):
         weights = self.user_weights
@@ -612,42 +689,49 @@ class portfolio():
             old_df = self.df.copy()
             self.use_df(df)
 
-        returns = self._portfolio_return(weights)
-
-        # calculate user's portfolio volatility
-        ef_user = EfficientFrontier(self.mu, self.S)
-        ef_user.set_weights(dict(zip(self.stocks, weights)))
-        _, user_vol, _ = ef_user.portfolio_performance(verbose=False)
-
         pf_metrics = {
-            "return": returns,
-            "user_variance": user_vol,
+            "return": 100*(self._portfolio_return(weights)),
+            "user_variance": self._portfolio_vol(weights),
             "user_var": self._portfolio_var(weights),
             "user_cvar": self._portfolio_cvar(weights),
             "user_sharpe": -self._portfolio_sharpe(weights) if weights is not None else None,
             "user_maxdd": self._portfolio_max_drawdown(weights) if weights is not None else None,
 
-            "opt_variance": self.opt_variance[0] if self.opt_variance else None,
-            "opt_var": self.opt_var[0] if self.opt_var else None,
-            "opt_cvar": self.opt_cvar[0] if self.opt_cvar else None,
+            "opt_variance": self.opt_for_return['variance'][0] if self.opt_for_return['variance'] else None,
+            "opt_var": self.opt_for_return['var'][0] if self.opt_for_return['var'] else None,
+            "opt_cvar": self.opt_for_return['cvar'][0] if self.opt_for_return['cvar'] else None,
+            "opt_sharpe": self.opt_for_return['sharpe'][0] if self.opt_for_return['sharpe'] else None,
+            "opt_maxdd": self.opt_for_return['maxdd'][0] if self.opt_for_return['maxdd'] else None,
+
             "opt_max_return": self.opt_max_return[1] if self.opt_max_return else None,
             "opt_max_return_variance": self.opt_max_return[0] if self.opt_max_return else None,
-            "opt_sharpe": self.opt_sharpe[0] if self.opt_sharpe else None,
-            "opt_maxdd": self.opt_maxdd[0] if self.opt_maxdd else None,
+            "opt_max_return_weights": self.opt_max_return[2] if self.opt_max_return else None,
 
             "user_weights": weights,
-            "opt_variance_weights": self.opt_variance[2] if self.opt_variance else None,
-            "opt_var_weights": self.opt_var[2] if self.opt_var else None,
-            "opt_cvar_weights": self.opt_cvar[2] if self.opt_cvar else None,
-            "opt_max_return_weights": self.opt_max_return[2] if self.opt_max_return else None,
-            "opt_sharpe_weights": self.opt_sharpe[2] if self.opt_sharpe else None,
-            "opt_maxdd_weights": self.opt_maxdd[2] if self.opt_maxdd else None,
+            "opt_variance_weights": self.opt_for_return['variance'][2] if self.opt_for_return['variance'] else None,
+            "opt_var_weights": self.opt_for_return['var'][2] if self.opt_for_return['var'] else None,
+            "opt_cvar_weights": self.opt_for_return['cvar'][2] if self.opt_for_return['cvar'] else None,
+            "opt_sharpe_weights": self.opt_for_return['sharpe'][2] if self.opt_for_return['sharpe'] else None,
+            "opt_maxdd_weights": self.opt_for_return['maxdd'][2] if self.opt_for_return['maxdd'] else None,
+
+            "opt_variance_ret_weights": self.opt_for_risk['variance'][2] if self.opt_for_risk['variance'] else None,
+            "opt_var_ret_weights": self.opt_for_risk['var'][2] if self.opt_for_risk['var'] else None,
+            "opt_cvar_ret_weights": self.opt_for_risk['cvar'][2] if self.opt_for_risk['cvar'] else None,
+            "opt_sharpe_ret_weights": self.opt_for_risk['sharpe'][2] if self.opt_for_risk['sharpe'] else None,
+            "opt_maxdd_ret_weights": self.opt_for_risk['maxdd'][2] if self.opt_for_risk['maxdd'] else None,
+
+            "opt_variance_ret": self.opt_for_risk['variance'][1] if self.opt_for_risk['variance'] else None,
+            "opt_var_ret": self.opt_for_risk['var'][1] if self.opt_for_risk['var'] else None,
+            "opt_cvar_ret": self.opt_for_risk['cvar'][1] if self.opt_for_risk['cvar'] else None,
+            "opt_sharpe_ret": self.opt_for_risk['sharpe'][1] if self.opt_for_risk['sharpe'] else None,
+            "opt_maxdd_ret": self.opt_for_risk['maxdd'][1] if self.opt_for_risk['maxdd'] else None,
         }
 
         if df is not None: # restore the old dataframe
             self.use_df(old_df)
 
         return pf_metrics
+
 
     # TODO: move this to test.py. dataframes can be passed as an argument, as they are the only self parameter used.
     def run_backtest_backtrader(self, weights_dict, start_date=None, end_date=None):

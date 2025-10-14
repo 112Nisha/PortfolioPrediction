@@ -14,4 +14,53 @@
         <small class="text-muted">Available months: <strong id="total-months">Unknown</strong></small>
         {% endif %}
     </div>
+
+    <label class="ms-2">Return estimation:
+        <select id="mean-method" name="mean_method" class="form-control d-inline-block" style="width:250px;">
+            <option value="mean_historical" {% if mean_method=='mean_historical' %}selected{% endif %}>
+                Mean historical return
+            </option>
+            <option value="ewm_mean_historical" {% if mean_method=='ewm_mean_historical' %}selected{% endif %}>
+                Exponentially weighted mean historical return
+            </option>
+            <option value="capm" {% if mean_method=='capm' %}selected{% endif %}>
+                CAPM estimate of returns
+            </option>
+        </select>
+    </label>
+
+    <label class="ms-2">Covariance estimation:
+        <select id="cov-method" name="cov_method" class="form-control d-inline-block" style="width:300px;">
+            <option value="fix_psd" {% if cov_method=='fix_psd' %}selected{% endif %}>
+                Fix non-positive semidefinite matrices
+            </option>
+            <option value="sample" {% if cov_method=='sample' %}selected{% endif %}>
+                Sample covariance
+            </option>
+            <option value="semicovariance" {% if cov_method=='semicovariance' %}selected{% endif %}>
+                Semicovariance
+            </option>
+            <option value="ewm" {% if cov_method=='ewm' %}selected{% endif %}>
+                Exponentially weighted covariance
+            </option>
+            <option value="mcd" {% if cov_method=='mcd' %}selected{% endif %}>
+                Minimum covariance determinant
+            </option>
+            <optgroup label="Shrunk covariance matrices">
+                <option value="manual_shrinkage" {% if cov_method=='manual_shrinkage' %}selected{% endif %}>
+                    Manual shrinkage
+                </option>
+                <option value="ledoit_wolf" {% if cov_method=='ledoit_wolf' %}selected{% endif %}>
+                    Ledoit-Wolf shrinkage
+                </option>
+                <option value="oracle_approx" {% if cov_method=='oracle_approx' %}selected{% endif %}>
+                    Oracle-Approximating shrinkage
+                </option>
+            </optgroup>
+            <option value="cov_to_corr" {% if cov_method=='cov_to_corr' %}selected{% endif %}>
+                Covariance to correlation matrix
+            </option>
+        </select>
+    </label>
+
 </div>

@@ -32,7 +32,7 @@ def html_plot(stocks, points, risk_name, additional_points=None):
                                  text=["No efficient frontier points found."], showlegend=False))
 
     if additional_points is not None:
-        colors = ['blue', 'green']
+        colors = ['blue', 'green', 'yellow', 'purple', 'cyan']
         for idx, pt in enumerate(additional_points):
             risk, ret, weight, label = pt[0], pt[1], pt[2], pt[3]
             color = colors[idx % len(colors)]
@@ -53,40 +53,46 @@ def generate_frontier_graph(pfo: portfolio, pf_metrics):
     frontiers = []
     if pf_metrics['opt_variance']:
         add_vars = [
-            (pf_metrics['opt_variance'], pf_metrics['return'], pf_metrics['opt_variance_weights'], "Minimum Variance portfolio"),
-            (pf_metrics['user_variance'], pf_metrics['return'], pf_metrics['user_weights'], "User portfolio")]
+            (pf_metrics['opt_variance'], pf_metrics['return'], pf_metrics['opt_variance_weights'], "Minimized Variance portfolio"),
+            (pf_metrics['user_variance'], pf_metrics['return'], pf_metrics['user_weights'], "User portfolio"),
+            (pf_metrics['user_variance'], pf_metrics['opt_variance_ret'], pf_metrics['opt_variance_ret_weights'], "Return optimized portfolio")]
+
     else:
         add_vars = None
     frontiers.append(html_plot(pfo.df.columns, pfo.mv_frontier_pts, "Variance", add_vars))
 
     if pf_metrics['opt_var']:
         add_vars = [
-            (pf_metrics['opt_var'], pf_metrics['return'], pf_metrics['opt_var_weights'], "Minimum VaR portfolio"),
-            (pf_metrics['user_var'], pf_metrics['return'], pf_metrics['user_weights'], "User portfolio")]
+            (pf_metrics['opt_var'], pf_metrics['return'], pf_metrics['opt_var_weights'], "Minimized VaR portfolio"),
+            (pf_metrics['user_var'], pf_metrics['return'], pf_metrics['user_weights'], "User portfolio"),
+            (pf_metrics['user_var'], pf_metrics['opt_var_ret'], pf_metrics['opt_var_ret_weights'], "Return optimized portfolio")]
     else:
         add_vars = None
     frontiers.append(html_plot(pfo.df.columns, pfo.var_frontier_pts, "VaR", add_vars))
 
     if pf_metrics['opt_cvar']:
         add_vars = [
-            (pf_metrics['opt_cvar'], pf_metrics['return'], pf_metrics['opt_cvar_weights'], "Minimum CVaR portfolio"),
-            (pf_metrics['user_cvar'], pf_metrics['return'], pf_metrics['user_weights'], "User portfolio")]
+            (pf_metrics['opt_cvar'], pf_metrics['return'], pf_metrics['opt_cvar_weights'], "Minimized CVaR portfolio"),
+            (pf_metrics['user_cvar'], pf_metrics['return'], pf_metrics['user_weights'], "User portfolio"),
+            (pf_metrics['user_cvar'], pf_metrics['opt_cvar_ret'], pf_metrics['opt_cvar_ret_weights'], "Return optimized portfolio")]
     else:
         add_vars = None
     frontiers.append(html_plot(pfo.df.columns, pfo.cvar_frontier_pts, "CVaR", add_vars))
 
     if pf_metrics['opt_sharpe']:
         add_vars = [
-            (pf_metrics['opt_sharpe'], pf_metrics['return'], pf_metrics['opt_sharpe_weights'], "Minimum Sharpe portfolio"),
-            (-pfo._portfolio_sharpe(pf_metrics['user_weights']), pf_metrics['return'], pf_metrics['user_weights'], "User portfolio")]
+            (pf_metrics['opt_sharpe'], pf_metrics['return'], pf_metrics['opt_sharpe_weights'], "Minimized Sharpe portfolio"),
+            (pf_metrics['user_sharpe'], pf_metrics['return'], pf_metrics['user_weights'], "User portfolio"),
+            (pf_metrics['user_sharpe'], pf_metrics['opt_sharpe_ret'], pf_metrics['opt_sharpe_ret_weights'], "Return optimized portfolio")]
     else:
         add_vars = None
     frontiers.append(html_plot(pfo.df.columns, pfo.sharpe_frontier_pts, "Sharpe Ratio", add_vars))
 
     if pf_metrics['opt_maxdd']:
         add_vars = [
-            (pf_metrics['opt_maxdd'], pf_metrics['return'], pf_metrics['opt_maxdd_weights'], "Minimum MaxDD portfolio"),
-            (pf_metrics['user_maxdd'], pf_metrics['return'], pf_metrics['user_weights'], "User portfolio")]
+            (pf_metrics['opt_maxdd'], pf_metrics['return'], pf_metrics['opt_maxdd_weights'], "Minimized MaxDD portfolio"),
+            (pf_metrics['user_maxdd'], pf_metrics['return'], pf_metrics['user_weights'], "User portfolio"),
+            (pf_metrics['user_maxdd'], pf_metrics['opt_maxdd_ret'], pf_metrics['opt_maxdd_ret_weights'], "Return optimized portfolio")]
     else:
         add_vars = None
     frontiers.append(html_plot(pfo.df.columns, pfo.maxdd_frontier_pts, "Max Drawdown", add_vars))
