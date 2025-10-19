@@ -1,13 +1,108 @@
 {% extends 'base.html' %}
 {% block title %}Info - PortfolioPrediction{% endblock %}
 {% block content %}
-<h1>Portfolio Optimization</h1>
-<p>Portfolio optimization is a mathematical approach to selecting the best mix of assets to maximize returns and minimize risk. The most common method is <strong>mean-variance optimization</strong>, which uses historical data to estimate expected returns and risk (variance) for each asset.</p>
-<ul>
-	<li><strong>Mean:</strong> The average historical return of the portfolio.</li>
-	<li><strong>Variance:</strong> The risk or volatility of the portfolio's returns.</li>
-	<li><strong>Efficient Frontier:</strong> The set of optimal portfolios offering the highest expected return for a given level of risk.</li>
-</ul>
-<h2>Database Information</h2>
-<p>We use a financial database containing historical stock prices and other relevant data. <br> <em>Placeholder: Add details about the database, data sources, and update frequency here.</em></p>
+<div class="container my-4">
+    <h1 class="mb-4">Portfolio Optimization and Analysis Information</h1>
+
+    <section class="mb-5">
+        <h2 class="h3">1. Core Concepts in Portfolio Optimization</h2>
+        <p>Portfolio optimization is a sophisticated mathematical approach to constructing an investment portfolio by carefully selecting the proportion of various assets. The primary goal is to achieve the best possible balance between maximizing expected returns and minimizing investment risk, often based on historical data.</p>
+
+        <h3 class="h4">Key Metrics:</h3>
+        <ul>
+            <li><strong>Expected Return (Mean):</strong> This represents the average historical return an investment portfolio is anticipated to generate over a given period. It's a measure of the potential profit from an investment.</li>
+            <li><strong>Risk (Volatility/Variance):</strong> This quantifies the degree of variation of a trading price series over time, reflecting the uncertainty or magnitude of changes in an investment's value. A higher variance typically indicates higher risk.</li>
+            <li><strong>Efficient Frontier:</strong> This is a fundamental concept in Modern Portfolio Theory (MPT). It is a curve that represents the set of "optimal" portfolios that offer the highest possible expected return for a given level of risk, or the lowest possible risk for a given expected return. Portfolios below the frontier are sub-optimal, and those above are unattainable.</li>
+        </ul>
+    </section>
+
+    <section class="mb-5">
+        <h2 class="h3">2. Return Estimation Methods</h2>
+        <p>Accurately estimating future returns is crucial. Our platform offers several methodologies:</p>
+        <ul>
+            <li><strong>Mean Historical Return:</strong> This is the simplest method, calculating the arithmetic average of past returns over the specified period. It assumes that future returns will resemble past averages.</li>
+            <li><strong>Exponentially Weighted Mean Historical Return (EWM):</strong> This method gives more weight to recent observations, making the estimate more responsive to recent market trends. It uses an exponential decay factor (span) to determine the influence of past data.</li>
+            <li><strong>CAPM Estimate of Returns (Capital Asset Pricing Model):</strong> CAPM estimates the expected return of an asset based on its sensitivity to market risk (beta), the expected market return, and the risk-free rate. It's a theoretical model that relates systematic risk to expected return.</li>
+        </ul>
+    </section>
+
+    <section class="mb-5">
+        <h2 class="h3">3. Covariance Estimation Methods</h2>
+        <p>The covariance matrix measures how the returns of different assets move together. Accurate covariance estimation is vital for understanding diversification benefits and portfolio risk.</p>
+        <ul>
+            <li><strong>Sample Covariance:</strong> The most straightforward method, calculating covariance directly from historical data. It can be noisy, especially with limited data.</li>
+            <li><strong>Fix Non-Positive Semidefinite Matrices (`fix_psd`):</strong> Numerical issues can sometimes lead to covariance matrices that are not positive semidefinite, which is mathematically problematic for optimization. This method adjusts such matrices to make them valid.</li>
+            <li><strong>Semicovariance:</strong> Focuses only on negative deviations from the mean (downside risk), which can be a more intuitive measure of risk for some investors than overall volatility.</li>
+            <li><strong>Exponentially Weighted Covariance (EWM):</strong> Similar to EWM for returns, this method assigns greater weight to recent data when calculating covariance, making it more adaptive to changing correlations.</li>
+            <li><strong>Minimum Covariance Determinant (MCD):</strong> A robust statistical method that identifies a subset of observations whose empirical covariance matrix has the minimum determinant. It's less sensitive to outliers.</li>
+            <li><strong>Shrunk Covariance Matrices:</strong> These methods combine the sample covariance matrix with a more stable target matrix, effectively "shrinking" the extreme values in the sample. This helps to reduce estimation error, especially with a large number of assets or limited data.
+                <ul>
+                    <li><strong>Manual Shrinkage:</strong> Allows for a fixed shrinkage intensity (e.g., 0.1) to blend the sample covariance with a target.</li>
+                    <li><strong>Ledoit-Wolf Shrinkage:</strong> Automatically determines the optimal shrinkage intensity based on mathematical theory.</li>
+                    <li><strong>Oracle-Approximating Shrinkage (OAS):</strong> Another method for automatically determining the shrinkage intensity, often performing well when data is scarce.</li>
+                </ul>
+            </li>
+            <li><strong>Covariance to Correlation Matrix (`cov_to_corr`):</strong> Transforms the covariance matrix into a correlation matrix. While not a direct covariance estimate, it can be useful for certain analyses or as an intermediate step in some models.</li>
+        </ul>
+    </section>
+
+    <section class="mb-5">
+        <h2 class="h3">4. Risk Metrics</h2>
+        <p>Beyond traditional variance, our platform allows optimization based on several key risk measures:</p>
+        <ul>
+            <li><strong>Variance:</strong> The squared standard deviation, a classical measure of total risk (volatility).</li>
+            <li><strong>VaR (Value at Risk):</strong> An estimate of the maximum potential loss over a specified time horizon at a given confidence level (e.g., 5% VaR means there's a 5% chance of losing at least this amount).</li>
+            <li><strong>CVaR (Conditional Value at Risk) / Expected Shortfall:</strong> The expected loss given that the loss exceeds the VaR. It's often considered a more robust measure of "tail risk" than VaR, as it considers the magnitude of extreme losses.</li>
+            <li><strong>Sharpe Ratio:</strong> Measures the risk-adjusted return of an investment. It is the average return earned in excess of the risk-free rate per unit of total risk (standard deviation). A higher Sharpe ratio indicates a better risk-adjusted return.</li>
+            <li><strong>Max Drawdown:</strong> The maximum observed loss from a peak to a trough of a portfolio, before a new peak is attained. It's an indicator of the downside risk of an investment over a specified time period.</li>
+        </ul>
+    </section>
+
+    <section class="mb-5">
+        <h2 class="h3">5. Optimization Goals</h2>
+        <p>Our application supports two main approaches to portfolio optimization:</p>
+        <ul>
+            <li><strong>Mean-Variance Optimization:</strong>
+                <p>This traditional approach, using <code>/mean_variance</code> endpoint, allows you to input your desired portfolio (stocks and weights). The system then calculates various metrics for your portfolio (Variance, VaR, CVaR, Sharpe Ratio, Max Drawdown). Crucially, it also finds optimized portfolios based on two criteria:</p>
+                <ul>
+                    <li><strong>Return-Optimized for User's Risk:</strong> For the same risk level as your current portfolio (e.g., your portfolio's variance), it finds a new portfolio that achieves the maximum possible return.</li>
+                    <li><strong>Risk-Optimized for User's Return:</strong> For the same expected return as your current portfolio, it finds a new portfolio that minimizes a specific risk metric (e.g., minimizes variance, VaR, CVaR, etc.).</li>
+                </ul>
+                <p>It generates efficient frontiers (plots showing the trade-off between risk and return/Sharpe) for Variance, VaR, CVaR, Sharpe Ratio, and Max Drawdown.</p>
+            </li>
+            <li><strong>Risk Optimization (Maximize Return for Target Risk):</strong>
+                <p>Accessed via the <code>/risk_opt</code> endpoint, this feature allows you to specify a target level for a chosen risk metric (e.g., "I want a maximum VaR of 0.02"). The system then optimizes a portfolio to achieve the highest possible return while staying within your specified risk tolerance.</p>
+            </li>
+        </ul>
+    </section>
+
+    <section class="mb-5">
+        <h2 class="h3">6. Backtesting and Time Series Analysis</h2>
+        <p>To evaluate the robustness of optimization strategies, our platform incorporates backtesting:</p>
+        <ul>
+            <li><strong>Train/Test Split:</strong> The available historical data is split into "train" and "test" periods (e.g., 36 months for training, 3 months for testing). The optimization is performed exclusively on the "train" data to derive optimal weights.</li>
+            <li><strong>Out-of-Sample Evaluation:</strong> The optimized weights are then applied to the "test" (out-of-sample) data to simulate how the portfolio would have performed in a period not seen during optimization. This provides a more realistic assessment of the strategy's effectiveness.</li>
+            <li><strong>Backtrader Integration:</strong> We utilize the <code>Backtrader</code> library to run these simulations. It creates a realistic trading environment, applying the calculated portfolio weights to the historical Open, High, Low, Close, and Volume (OHLCV) data for the test period. This generates cumulative return plots for various portfolio types (user, variance-optimized, VaR-optimized, etc.) over different test horizons (e.g., 1-month, 2-month, 3-month backtests).</li>
+        </ul>
+    </section>
+
+    <section class="mb-5">
+        <h2 class="h3">7. Backend Technologies</h2>
+        <p>The application is built using a combination of powerful Python libraries:</p>
+        <ul>
+            <li><strong>Flask:</strong> A lightweight web framework used to handle web requests, routes, and render HTML templates.</li>
+            <li><strong>PyPortfolioOpt (`pypfopt`):</strong> A comprehensive library for portfolio optimization, providing efficient implementations of Mean-Variance, CVaR, and other optimization techniques, along with various return and risk model estimators.</li>
+            <li><strong>Backtrader:</strong> A powerful and flexible Python framework for backtesting trading strategies, allowing realistic simulations of portfolio performance over historical data.</li>
+            <li><strong>Plotly:</strong> An interactive graphing library used to generate the efficient frontier plots and backtesting results, allowing users to hover over points for detailed information.</li>
+            <li><strong>Pandas & NumPy:</strong> Fundamental libraries for data manipulation and numerical operations, heavily used for handling financial time series data and calculations.</li>
+        </ul>
+    </section>
+
+    <section class="mb-5">
+        <h2 class="h3">8. Data Source</h2>
+        <p>The historical stock price data used for analysis is sourced from CSV files stored locally in the <code>./data</code> directory. Each file typically contains daily Open, High, Low, Close, and Volume data for a specific stock. The application automatically reads these files to provide available stock options and compute historical metrics.</p>
+    </section>
+
+    <p class="mt-5 text-muted text-center">This information helps explain the methodologies and tools behind the PortfolioPrediction application.</p>
+</div>
 {% endblock %}
