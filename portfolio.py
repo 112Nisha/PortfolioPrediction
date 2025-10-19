@@ -252,11 +252,11 @@ class portfolio():
         # return self.rets[self.rets < var].mean().to_numpy()[0]
 
     def _portfolio_sharpe(self, w, risk_free_rate=0.0):
-        """Calculate negative Sharpe ratio (for minimization) using pypfopt"""
+        """Compute Sharpe ratio using PyPortfolioOpt instead of manual math."""
         ef = EfficientFrontier(self.mu, self.S)
-        ef.set_weights(dict(zip(self.stocks, w)))
+        ef.set_weights(dict(zip(self.mu.index, w)))
         ret, vol, sharpe = ef.portfolio_performance(verbose=False, risk_free_rate=risk_free_rate)
-        return -sharpe  # Negative for minimization
+        return sharpe
 
     def _portfolio_max_drawdown(self, w):
         """Calculate maximum drawdown for given weights"""
@@ -334,33 +334,20 @@ class portfolio():
         print(f"_optimize_var_for_return failed after {attempts} attempts for target_return={target_return}; last message: {last_message}")
         return None
 
-    def _optimize_sharpe_for_return(self, target_return):
-        """Optimize for maximum Sharpe ratio at given return level"""
-        num_assets = len(self.mu)
-        bounds = tuple((-1, 1) for _ in range(num_assets))
-        initial_guess = np.array(num_assets * [1.0 / num_assets])
-        
+    def _optimize_sharpe_for_return(self, target_return=None, risk_free_rate=0.0):
+        """
+        Optimize for maximum Sharpe ratio using EfficientFrontier.max_sharpe().
+        Ignores target_return since max_sharpe() handles it internally.
+        """
         try:
-            result = minimize(
-                self._portfolio_sharpe,
-                initial_guess,
-                method='SLSQP',
-                bounds=bounds,
-                constraints=[
-                    {'type': 'eq', 'fun': lambda weights: np.sum(weights) - 1},
-                    {'type': 'eq', 'fun': lambda weights: self._portfolio_return(weights) - target_return}
-                ],
-                options={'maxiter': 500}
-            )
-            
-            if result.success:
-                w_sharpe = self._as_series(result.x)
-                sharpe_val = -self._portfolio_sharpe(w_sharpe)  # Convert back to positive
-                ret_sharpe = self._portfolio_return(w_sharpe)
-                return (sharpe_val, 100*ret_sharpe, w_sharpe)
+            ef = EfficientFrontier(self.mu, self.S, weight_bounds=(-1, 1))
+            ef.max_sharpe(risk_free_rate=risk_free_rate)
+            w = ef.clean_weights()
+            ret, vol, sharpe = ef.portfolio_performance(verbose=False, risk_free_rate=risk_free_rate)
+            return sharpe, 100 * ret, self._as_series(w)
         except Exception as e:
             print(f"Sharpe optimization failed: {e}")
-        return None
+            return None
 
     def _optimize_maxdd_for_return(self, target_return):
         """Optimize for minimum max drawdown at given return level"""
@@ -524,61 +511,21 @@ class portfolio():
             traceback.print_exc()
             return None
  
-    def optimize_max_return_for_sharpe(self, target_sharpe, risk_free_rate=0.0):
-        """Find portfolio with maximum return for given Sharpe ratio constraint."""
+    def optimize_max_return_for_sharpe(self, target_sharpe=None, risk_free_rate=0.0):
+        """
+        Get the portfolio with maximum Sharpe ratio directly.
+        Removes scipy optimization and uses max_sharpe() from PyPortfolioOpt.
+        """
         try:
-            min_sharpe = min(risk for risk, _, _ in self.sharpe_frontier_pts)
-            max_sharpe = max(risk for risk, _, _ in self.sharpe_frontier_pts)
-            
-            print(f"Feasible Sharpe range: [{min_sharpe:.4f}, {max_sharpe:.4f}]")
-            print(f"Target Sharpe: {target_sharpe:.4f}")
-            
-            if target_sharpe < min_sharpe or target_sharpe > max_sharpe:
-                self.opt_max_return = f"Target is outside feasible range: ({min_sharpe}, {max_sharpe})"
-                return None
-            
-            n_assets = len(self.mu)
-            initial_guess = np.ones(n_assets) / n_assets
-            bounds = tuple((-1, 1) for _ in range(n_assets))
-            
-            def neg_expected_return(weights):
-                return -self._portfolio_return(weights)
-            
-            def sharpe_constraint(weights):
-                ret = self._portfolio_return(weights)
-                vol = np.sqrt(weights @ self.S @ weights)
-                if vol == 0:
-                    return 0
-                return (ret - risk_free_rate) / vol - target_sharpe
-            
-            constraints = [
-                {'type': 'eq', 'fun': lambda w: np.sum(w) - 1},
-                {'type': 'eq', 'fun': sharpe_constraint}
-            ]
-            
-            result = minimize(
-                neg_expected_return,
-                initial_guess,
-                method='SLSQP',
-                bounds=bounds,
-                constraints=constraints,
-                options={'maxiter': 500}
-            )
-            
-            if result.success:
-                w_opt = self._as_series(dict(zip(self.mu.index, result.x)))
-                ret_opt = self._portfolio_return(result.x)
-                sharpe_opt = -self._portfolio_sharpe(result.x, risk_free_rate)
-                
-                self.opt_max_return = (sharpe_opt, 100 * ret_opt, w_opt)
-                return (sharpe_opt, 100 * ret_opt, w_opt)
-            else:
-                raise ValueError(f"Optimization failed: {result.message}")
-        
+            ef = EfficientFrontier(self.mu, self.S, weight_bounds=(-1, 1))
+            ef.max_sharpe(risk_free_rate=risk_free_rate)
+            w = ef.clean_weights()
+            ret, vol, sharpe = ef.portfolio_performance(verbose=False, risk_free_rate=risk_free_rate)
+            self.opt_max_return = (sharpe, 100 * ret, self._as_series(w))
+            return self.opt_max_return
         except Exception as e:
             self.opt_max_return = e
-            import traceback
-            traceback.print_exc()
+            print(f"Sharpe max-return optimization failed: {e}")
             return None
 
     def optimize_max_return_for_maxdd(self, target_maxdd):
@@ -649,10 +596,18 @@ class portfolio():
             res for r in grid
             if (res := self._optimize_var_for_return(r)) is not None
         ]
-        self.sharpe_frontier_pts = [
-            res for r in grid
-            if (res := self._optimize_sharpe_for_return(r)) is not None
-        ]
+        self.sharpe_frontier_pts = []
+        for r in grid:
+            try:
+                ef = EfficientFrontier(self.mu, self.S, weight_bounds=(-1, 1))
+                ef.efficient_return(r)
+                ret, vol, _ = ef.portfolio_performance(verbose=False)
+                sharpe = (ret - 0.0) / vol  # assuming risk-free rate = 0
+                self.sharpe_frontier_pts.append(
+                    (sharpe, 100 * ret, self._as_series(ef.clean_weights()))
+                )
+            except Exception:
+                continue
         self.maxdd_frontier_pts = [
             res for r in grid
             if (res := self._optimize_maxdd_for_return(r)) is not None
