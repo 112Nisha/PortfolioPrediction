@@ -1,22 +1,22 @@
 <div class="d-flex justify-content-start align-items-center gap-3 mt-3">
     <label class="ms-2">Train months:
-        <input id="train-months" type="number" name="train_months" value="{{ train_months | default(36) }}" min="1"
+        <input class="train-months" type="number" name="train_months" value="{{ train_months | default(36) }}" min="1"
             class="form-control d-inline-block" style="width:100px;">
     </label>
     <label class="ms-2">Test months:
-        <input id="test-months" type="number" name="test_months" value="{{ test_months | default(3) }}" min="1"
+        <input class="test-months" type="number" name="test_months" value="{{ test_months | default(3) }}" min="1"
             class="form-control d-inline-block" style="width:100px;">
     </label>
     <div class="ms-3 align-self-center">
         {% if total_months is defined and total_months %}
-        <small class="text-muted">Available months: <strong id="total-months">{{ total_months }}</strong></small>
+        <small class="text-muted">Available months: <strong class="total-months">{{ total_months }}</strong></small>
         {% else %}
-        <small class="text-muted">Available months: <strong id="total-months">Unknown</strong></small>
+        <small class="text-muted">Available months: <strong class="total-months">Unknown</strong></small>
         {% endif %}
     </div>
 
     <label class="ms-2">Return estimation:
-        <select id="mean-method" name="mean_method" class="form-control d-inline-block" style="width:250px;">
+        <select class="mean-method form-control d-inline-block" name="mean_method" style="width:250px;">
             <option value="mean_historical" {% if mean_method=='mean_historical' %}selected{% endif %}>
                 Mean historical return
             </option>
@@ -30,7 +30,7 @@
     </label>
 
     <label class="ms-2">Covariance estimation:
-        <select id="cov-method" name="cov_method" class="form-control d-inline-block" style="width:300px;">
+        <select class="cov-method form-control d-inline-block" name="cov_method" style="width:300px;">
             <option value="fix_psd" {% if cov_method=='fix_psd' %}selected{% endif %}>
                 Fix non-positive semidefinite matrices
             </option>
@@ -63,4 +63,59 @@
         </select>
     </label>
 
+    <div class="ewm-span-container ms-2" style="display:none; min-width: 200px;">
+        <label for="ewm-span-slider" class="form-label">EWM Span: <span class="ewm-span-value">{{ ewm_span | default(30) }}</span></label>
+        <input type="range" class="form-range ewm-span-slider" name="ewm_span" min="1" max="120" value="{{ ewm_span | default(30) }}">
+    </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const meanMethodSelects = document.querySelectorAll('.mean-method');
+        const covMethodSelects = document.querySelectorAll('.cov-method');
+        const ewmSpanContainers = document.querySelectorAll('.ewm-span-container');
+        const ewmSpanSliders = document.querySelectorAll('.ewm-span-slider');
+        const ewmSpanValues = document.querySelectorAll('.ewm-span-value');
+
+        function toggleEwmSpanVisibilityForForm(index) {
+            const meanMethodSelect = meanMethodSelects[index];
+            const covMethodSelect = covMethodSelects[index];
+            const ewmSpanContainer = ewmSpanContainers[index];
+
+            if (!meanMethodSelect || !covMethodSelect || !ewmSpanContainer) {
+                return;
+            }
+
+            const isEwmMean = meanMethodSelect.value === 'ewm_mean_historical';
+            const isEwmCov = covMethodSelect.value === 'ewm';
+
+            if (isEwmMean || isEwmCov) {
+                ewmSpanContainer.style.display = 'block';
+            } else {
+                ewmSpanContainer.style.display = 'none';
+            }
+        }
+
+        // Attach event listeners to all instances of mean method selects
+        meanMethodSelects.forEach((select, index) => {
+            select.addEventListener('change', () => toggleEwmSpanVisibilityForForm(index));
+        });
+
+        // Attach event listeners to all instances of covariance method selects
+        covMethodSelects.forEach((select, index) => {
+            select.addEventListener('change', () => toggleEwmSpanVisibilityForForm(index));
+        });
+
+        // Attach input event listeners for the sliders to update the displayed value
+        ewmSpanSliders.forEach((slider, index) => {
+            slider.addEventListener('input', function() {
+                ewmSpanValues[index].textContent = this.value;
+            });
+        });
+
+        // Initial check for all instances on page load
+        for (let i = 0; i < ewmSpanContainers.length; i++) {
+            toggleEwmSpanVisibilityForForm(i);
+        }
+    });
+</script>

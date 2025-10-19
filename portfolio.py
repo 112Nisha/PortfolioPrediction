@@ -9,14 +9,17 @@ import backtrader as bt
 
 from pypfopt import expected_returns, risk_models
 
-def compute_mu_and_cov(df, mean_method, cov_method, market_prices=None, risk_free_rate=0.0):
+def compute_mu_and_cov(df, mean_method, cov_method, market_prices=None, risk_free_rate=0.0, ewm_span=None):
     """Compute expected returns (mu) and covariance matrix (S) based on chosen methods."""
 
     # --- MEAN (EXPECTED RETURN) ---
     if mean_method == "mean_historical":
         mu = expected_returns.mean_historical_return(df)
     elif mean_method == "ewm_mean_historical":
-        mu = expected_returns.ema_historical_return(df)
+        if ewm_span:
+            mu = expected_returns.ema_historical_return(df, span=ewm_span)
+        else:
+            mu = expected_returns.ema_historical_return(df)
     elif mean_method == "capm":
         # if market_prices is None:
         #     raise ValueError("CAPM requires market index prices (market_prices).")
@@ -30,7 +33,10 @@ def compute_mu_and_cov(df, mean_method, cov_method, market_prices=None, risk_fre
     elif cov_method == "semicovariance":
         S = risk_models.semicovariance(df)
     elif cov_method == "ewm":
-        S = risk_models.exp_cov(df)
+        if ewm_span:
+            S = risk_models.exp_cov(df, span=ewm_span)
+        else:
+            S = risk_models.exp_cov(df)
     elif cov_method == "mcd":
         S = risk_models.min_cov_determinant(df)
     elif cov_method == "ledoit_wolf":
@@ -79,8 +85,9 @@ class BuyAndHold(bt.Strategy):
 
 
 class portfolio():
-    def __init__(self, stocks, mean_method, cov_method, user_weights=None):
+    def __init__(self, stocks, mean_method, cov_method, user_weights=None, ewm_span=None):
         self.stocks = stocks
+        self.ewm_span = ewm_span
 
         if user_weights is not None:
             self.user_weights = np.array([float(w)/100 for w in user_weights])
@@ -97,7 +104,7 @@ class portfolio():
             # self.rets = self.df.pct_change().dropna()
             # self.mu = expected_returns.mean_historical_return(self.df)
             # self.S = risk_models.sample_cov(self.df)
-            self.mu, self.S = compute_mu_and_cov(self.df, mean_method, cov_method)
+            self.mu, self.S = compute_mu_and_cov(self.df, mean_method, cov_method, ewm_span=self.ewm_span)
 
 
         self.mv_frontier_pts = []
@@ -217,7 +224,7 @@ class portfolio():
         self.df = df.copy()
         # if not self.df.empty:
         self.rets = expected_returns.returns_from_prices(self.df.dropna()) # self.df.pct_change().dropna() # Ensure rets is updated
-        self.mu, self.S = compute_mu_and_cov(self.df, self.mean_method, self.cov_method)
+        self.mu, self.S = compute_mu_and_cov(self.df, self.mean_method, self.cov_method, ewm_span=self.ewm_span)
 
 
     def _as_series(self, w):
@@ -245,12 +252,11 @@ class portfolio():
         # return self.rets[self.rets < var].mean().to_numpy()[0]
 
     def _portfolio_sharpe(self, w, risk_free_rate=0.0):
-        """Calculate negative Sharpe ratio (for minimization)"""
-        ret = self._portfolio_return(w)
-        vol = np.sqrt(w @ self.S @ w)
-        if vol == 0:
-            return -np.inf
-        return -(ret - risk_free_rate) / vol
+        """Calculate negative Sharpe ratio (for minimization) using pypfopt"""
+        ef = EfficientFrontier(self.mu, self.S)
+        ef.set_weights(dict(zip(self.stocks, w)))
+        ret, vol, sharpe = ef.portfolio_performance(verbose=False, risk_free_rate=risk_free_rate)
+        return -sharpe  # Negative for minimization
 
     def _portfolio_max_drawdown(self, w):
         """Calculate maximum drawdown for given weights"""

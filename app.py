@@ -178,7 +178,14 @@ def mean_variance():
     # lazy imports to avoid failing at module import time if heavy deps are missing
     from portfolio import portfolio
     from graph import generate_frontier_graph, generate_backtrader_plots
-    pfo = portfolio(stocks, mean_method, cov_method, user_weights=weights)
+
+    # Get EWM span parameter
+    try:
+        ewm_span = int(request.form.get('ewm_span', 30))
+    except Exception:
+        ewm_span = 30
+
+    pfo = portfolio(stocks, mean_method, cov_method, user_weights=weights, ewm_span=ewm_span)
 
     # split and use train for optimisation
     train_df, test_df, used_train, used_test, total_months = pfo.split_train_test(train_months, test_months)
@@ -264,7 +271,14 @@ def risk_opt():
     # lazy imports to avoid failing at module import time if heavy deps are missing
     from portfolio import portfolio
     from graph import generate_frontier_graph, generate_backtrader_plots
-    pfo = portfolio(stocks, mean_method, cov_method)
+
+    # Get EWM span parameter
+    try:
+        ewm_span = int(request.form.get('ewm_span', 30))
+    except Exception:
+        ewm_span = 30
+
+    pfo = portfolio(stocks, mean_method, cov_method, ewm_span=ewm_span)
 
     # split and use train for optimisation
     train_df, test_df, used_train, used_test, total_months = pfo.split_train_test(train_months, test_months)
