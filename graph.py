@@ -67,12 +67,12 @@ def generate_frontier_graph(pfo, user_pf: Portfolio = None, opt_for_risk: Optimi
                 (getattr(user_pf, metric_name), user_pf.return_, user_pf.weights, "User Portfolio"),
             )
 
-        if opt_for_risk and risk_pf.success is None:
+        if opt_for_risk and risk_pf.weights is not None:
             add_vars.append(
             (getattr(risk_pf, metric_name), risk_pf.return_, risk_pf.weights, f"Minimized {risk_label} Portfolio"),
             )
 
-        if opt_for_return and ret_pf.success is None:
+        if opt_for_return and ret_pf.weights is not None:
             add_vars.append(
                 (getattr(ret_pf, metric_name), ret_pf.return_, ret_pf.weights, "Return-Optimized Portfolio")
             )

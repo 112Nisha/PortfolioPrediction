@@ -143,6 +143,7 @@ def mean_variance():
         return render_template('index.html', stats=stats, graph_htmls=graph_htmls, backtest_plots_data=backtest_plots_data, used_train=used_train, used_test=used_test, total_months=total_months, train_months=train_months, test_months=test_months, stocks=stocks, weights=weights, stock_options=stocks_list, mean_method=mean_method, cov_method=cov_method)
 
     except Exception as e:
+        # raise Exception(e)
         print(e)
         return render_template('index.html', error=str(e), stock_options=stocks_list)
 
@@ -210,9 +211,9 @@ def risk_opt():
         else:
             return render_template('index.html', error=f"Invalid risk metric {risk_type}", stocks=stocks, stock_options=stocks_list, riskvalue=risk_value, mean_method=mean_method, cov_method=cov_method)
 
-        if isinstance(opt, str):
-            print("error:", opt)
-            error = f"Could not optimise on target risk {risk_value}: {opt}"
+        if opt.success is not None:
+            print("error:", opt.success)
+            error = f"Could not optimise on target risk {risk_value}: {opt.success}"
             return render_template('index.html', error=error, stocks=stocks, stock_options=stocks_list, riskvalue=risk_value, risktype=risk_type, mean_method=mean_method, cov_method=cov_method)
         print(opt)
 
