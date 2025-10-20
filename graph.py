@@ -4,10 +4,12 @@ from portfolio import portfolio
 import pandas as pd
 import numpy as np
 import matplotlib
+from utils import Portfolio, OptimizationResultsContainer
 matplotlib.use('Agg')  # Prevent GUI popups during plot generation
 
+
 def get_hovertemplate(stock_list, label=None):
-    splits_str = ", ".join([f"{s}=%{{customdata[{i}]}}" for i, s in enumerate(stock_list)])
+    splits_str = ", ".join([f"{s}=%{{customdata[{i}]:.4f}}" for i, s in enumerate(stock_list)])
     display = "Risk: %{x:.4f}<br>Return: %{y:.4f}<br>Split:" + splits_str + "<extra></extra>"
     if label is not None:
         display = label + "<br>" + display
@@ -22,10 +24,11 @@ def html_plot(stocks, points, risk_name, additional_points=None):
             returns.append(pt[1])
             weights.append(pt[2])
 
+        weights_list = [[w[s] for s in stocks] for w in weights]
         hovertemplate = get_hovertemplate(stocks)
         traces.append(go.Scatter(
             x=risks, y=returns, mode='markers+lines', name=risk_name,
-            marker=dict(color="red"), customdata=weights, hovertemplate=hovertemplate
+            marker=dict(color="red"), customdata=weights_list, hovertemplate=hovertemplate
         ))
     else:
         traces.append(go.Scatter(x=[0], y=[0], mode='text',
@@ -35,6 +38,7 @@ def html_plot(stocks, points, risk_name, additional_points=None):
         colors = ['blue', 'green', 'yellow', 'purple', 'cyan']
         for idx, pt in enumerate(additional_points):
             risk, ret, weight, label = pt[0], pt[1], pt[2], pt[3]
+            weight = [weight[s] for s in stocks]
             color = colors[idx % len(colors)]
             hovertemplate = get_hovertemplate(stocks, label)
             traces.append(go.Scatter(
@@ -49,55 +53,44 @@ def html_plot(stocks, points, risk_name, additional_points=None):
     fig = go.Figure(data=traces, layout=layout)
     return fig.to_html(include_plotlyjs=False, full_html=False)
 
-def generate_frontier_graph(pfo: portfolio, pf_metrics):
+def generate_frontier_graph(pfo, user_pf: Portfolio = None, opt_for_risk: OptimizationResultsContainer = None, opt_for_return: OptimizationResultsContainer = None):
     frontiers = []
-    if pf_metrics['opt_variance']:
-        add_vars = [
-            (pf_metrics['opt_variance'], pf_metrics['return'], pf_metrics['opt_variance_weights'], "Minimized Variance portfolio"),
-            (pf_metrics['user_variance'], pf_metrics['return'], pf_metrics['user_weights'], "User portfolio"),
-            (pf_metrics['user_variance'], pf_metrics['opt_variance_ret'], pf_metrics['opt_variance_ret_weights'], "Return optimized portfolio")]
 
-    else:
-        add_vars = None
-    frontiers.append(html_plot(pfo.df.columns, pfo.mv_frontier_pts, "Variance", add_vars))
+    # Helper function to reduce repetition
+    def add_frontier(metric_name: str, frontier_points, risk_label: str):
+        if opt_for_risk: risk_pf = getattr(opt_for_risk, metric_name)
+        if opt_for_return: ret_pf = getattr(opt_for_return, metric_name)
+        add_vars = [] # (x-axis risk, y-axis return, weights, label)
 
-    if pf_metrics['opt_var']:
-        add_vars = [
-            (pf_metrics['opt_var'], pf_metrics['return'], pf_metrics['opt_var_weights'], "Minimized VaR portfolio"),
-            (pf_metrics['user_var'], pf_metrics['return'], pf_metrics['user_weights'], "User portfolio"),
-            (pf_metrics['user_var'], pf_metrics['opt_var_ret'], pf_metrics['opt_var_ret_weights'], "Return optimized portfolio")]
-    else:
-        add_vars = None
-    frontiers.append(html_plot(pfo.df.columns, pfo.var_frontier_pts, "VaR", add_vars))
+        if user_pf:
+            add_vars.append(
+                (getattr(user_pf, metric_name), user_pf.return_, user_pf.weights, "User Portfolio"),
+            )
 
-    if pf_metrics['opt_cvar']:
-        add_vars = [
-            (pf_metrics['opt_cvar'], pf_metrics['return'], pf_metrics['opt_cvar_weights'], "Minimized CVaR portfolio"),
-            (pf_metrics['user_cvar'], pf_metrics['return'], pf_metrics['user_weights'], "User portfolio"),
-            (pf_metrics['user_cvar'], pf_metrics['opt_cvar_ret'], pf_metrics['opt_cvar_ret_weights'], "Return optimized portfolio")]
-    else:
-        add_vars = None
-    frontiers.append(html_plot(pfo.df.columns, pfo.cvar_frontier_pts, "CVaR", add_vars))
+        if opt_for_risk and risk_pf.success is None:
+            add_vars.append(
+            (getattr(risk_pf, metric_name), risk_pf.return_, risk_pf.weights, f"Minimized {risk_label} Portfolio"),
+            )
 
-    if pf_metrics['opt_sharpe']:
-        add_vars = [
-            (pf_metrics['opt_sharpe'], pf_metrics['return'], pf_metrics['opt_sharpe_weights'], "Minimized Sharpe portfolio"),
-            (pf_metrics['user_sharpe'], pf_metrics['return'], pf_metrics['user_weights'], "User portfolio"),
-            (pf_metrics['user_sharpe'], pf_metrics['opt_sharpe_ret'], pf_metrics['opt_sharpe_ret_weights'], "Return optimized portfolio")]
-    else:
-        add_vars = None
-    frontiers.append(html_plot(pfo.df.columns, pfo.sharpe_frontier_pts, "Sharpe Ratio", add_vars))
+        if opt_for_return and ret_pf.success is None:
+            add_vars.append(
+                (getattr(ret_pf, metric_name), ret_pf.return_, ret_pf.weights, "Return-Optimized Portfolio")
+            )
 
-    if pf_metrics['opt_maxdd']:
-        add_vars = [
-            (pf_metrics['opt_maxdd'], pf_metrics['return'], pf_metrics['opt_maxdd_weights'], "Minimized MaxDD portfolio"),
-            (pf_metrics['user_maxdd'], pf_metrics['return'], pf_metrics['user_weights'], "User portfolio"),
-            (pf_metrics['user_maxdd'], pf_metrics['opt_maxdd_ret'], pf_metrics['opt_maxdd_ret_weights'], "Return optimized portfolio")]
-    else:
-        add_vars = None
-    frontiers.append(html_plot(pfo.df.columns, pfo.maxdd_frontier_pts, "Max Drawdown", add_vars))
+        frontier_coords = [
+            (getattr(p, metric_name), p.return_, p.weights) for p in frontier_points if isinstance(p, Portfolio)
+        ]
+        frontiers.append(html_plot(pfo.stocks, frontier_coords, risk_label, add_vars))
+
+    # Call for each risk metric
+    add_frontier("variance", pfo.mv_frontier_pts, "Variance")
+    add_frontier("var", pfo.var_frontier_pts, "VaR")
+    add_frontier("cvar", pfo.cvar_frontier_pts, "CVaR")
+    add_frontier("sharpe", pfo.sharpe_frontier_pts, "Sharpe Ratio")
+    add_frontier("maxdd", pfo.maxdd_frontier_pts, "Max Drawdown")
 
     return frontiers
+
 
 def backtest_plots_from_series(series_dict, title_suffix=None):
     """Given a dict of series (keys: 'user','variance','var','cvar'),
@@ -118,7 +111,20 @@ def backtest_plots_from_series(series_dict, title_suffix=None):
 
     hover_tmpl = 'Date: %{x}<br>Cumulative: %{y:.4f}<extra></extra>'
 
-    mapping = [("user", "User Portfolio"), ("variance", "Variance-opt"), ("var", "VaR-opt"), ("cvar", "CVaR-opt"), ("sharpe", "Sharpe-opt"), ("maxdd", "MaxDD-opt")]
+    mapping = [
+        ("user", "User Portfolio"), 
+        ("variance_risk", "Variance-opt"), 
+        ("var_risk", "VaR-opt"), 
+        ("cvar_risk", "CVaR-opt"), 
+        ("sharpe_risk", "Sharpe-opt"), 
+        ("maxdd_risk", "MaxDD-opt"),
+        ("variance_return", "Variance-return-opt"), 
+        ("var_return", "VaR-return-opt"), 
+        ("cvar_return", "CVaR-return-opt"), 
+        ("sharpe_return", "Sharpe-return-opt"), 
+        ("maxdd_return", "MaxDD-return-opt"),
+    ]
+
     for key, label in mapping:
         s = series_dict.get(key)
         if s is not None:
@@ -135,9 +141,23 @@ def backtest_plots_from_series(series_dict, title_suffix=None):
     fig = go.Figure(data=traces, layout=layout)
     return fig.to_html(include_plotlyjs=False, full_html=False)
 
-def generate_backtrader_plots(pfo, test_df_for_dates, train_metrics, months_list=(1, 2, 3)):
+def generate_backtrader_plots(
+    pfo,
+    test_df_for_dates,
+    opt_for_risk: OptimizationResultsContainer,
+    opt_for_return: OptimizationResultsContainer,
+    user_pf: Portfolio=None,
+    months_list=(1, 2, 3)
+):
     """
     Generates Plotly HTML backtest charts for each period and portfolio type.
+
+    Arguments:
+        pfo: Portfolio optimizer/backtester object with run_backtest_backtrader(weights, start, end)
+        test_df_for_dates: DataFrame used to determine start/end of test period
+        user_pf: Portfolio (user's portfolio)
+        opt_for_risk: OptimizationResultsContainer (risk-optimized portfolios)
+        opt_for_return: OptimizationResultsContainer (return-optimized portfolios)
     """
     if test_df_for_dates.empty:
         print("Warning: Test DataFrame empty, cannot generate backtrader plots.")
@@ -146,22 +166,19 @@ def generate_backtrader_plots(pfo, test_df_for_dates, train_metrics, months_list
     start_date = test_df_for_dates.index.min()
     end_date = test_df_for_dates.index.max()
 
-    def safe_to_dict(w):
-        if w is None: return None
-        if hasattr(w, 'to_dict'): return w.to_dict()
-        if isinstance(w, (list, tuple, pd.Series, np.ndarray)):
-            return {k: v for k, v in zip(pfo.stocks, w)}
-        if isinstance(w, dict): return w
-        return None
+    all_weights = {}
 
-    all_weights = {
-        "user": safe_to_dict(train_metrics.get("user_weights")),
-        "variance": safe_to_dict(train_metrics.get("opt_variance_weights")),
-        "var": safe_to_dict(train_metrics.get("opt_var_weights")),
-        "cvar": safe_to_dict(train_metrics.get("opt_cvar_weights")),
-        "sharpe": safe_to_dict(train_metrics.get("opt_sharpe_weights")),
-        "maxdd": safe_to_dict(train_metrics.get("opt_maxdd_weights")),
-    }
+    # Build dictionary of all weight sets to backtest
+    if isinstance(user_pf, Portfolio):
+        all_weights["user"] = user_pf.weights
+
+    for key, pf in opt_for_risk.items():
+        if isinstance(pf, Portfolio):
+            all_weights[f"{key}_risk"] = pf.weights
+
+    for key, pf in opt_for_return.items():
+        if isinstance(pf, Portfolio):
+            all_weights[f"{key}_return"] = pf.weights
 
     html_plots = {}
 
@@ -173,21 +190,21 @@ def generate_backtrader_plots(pfo, test_df_for_dates, train_metrics, months_list
         if backtest_start >= end_date:
             continue
 
-        # Collect series for all portfolios
+        # Collect normalized value series for all portfolios
         series_dict = {}
         for key, weights in all_weights.items():
             if not weights:
                 continue
             try:
                 df = pfo.run_backtest_backtrader(weights, backtest_start, end_date)
-                if df is not None and not df.empty:
+                if df is not None and not df.empty and "value" in df.columns:
                     series = df["value"] / df["value"].iloc[0]
                     series_dict[key] = series
             except Exception as e:
                 print(f"Error in backtest for {key}: {e}")
                 import traceback; traceback.print_exc()
 
-        # Convert to HTML plot
+        # Convert collected time series into Plotly HTML
         if series_dict:
             html = backtest_plots_from_series(series_dict, title_suffix=month_label)
             html_plots[month_label] = html

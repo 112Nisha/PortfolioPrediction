@@ -1,6 +1,7 @@
 ## TO-DOs
+- change so "user weights" are easily configurable, should also just be able to configure a target return or risk
+- more division of code. jut optimisation in one file. testing and user portfolio stuff in another.
 - short selling results in could not optimise. Issue with code or params?
-- maximise return for a given risk
 
 - Add docs.
 - Create a maximum limit of 5 stocks and select only from a list of stocks.

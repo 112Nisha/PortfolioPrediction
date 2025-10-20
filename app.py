@@ -2,90 +2,13 @@ import os
 from flask import Flask, render_template, request, redirect, url_for
 import csv
 from datetime import datetime
+from portfolio import portfolio, compute_test_metrics
+from graph import generate_frontier_graph, generate_backtrader_plots
+from utils import *
 
 app = Flask(__name__)
 data_directory = './data'  # Replace with the desired path
 
-def format_weights_mv(stats):
-    """Normalize/format weight-containing entries in stats for display.
-
-    This helper is module-level so it can be used in both POST and tests.
-    """
-    if not isinstance(stats, dict):
-        return stats
-    for p in ["opt_variance_weights", "opt_var_weights", "opt_cvar_weights", "opt_sharpe_weights", "opt_maxdd_weights", "opt_variance_ret_weights", "opt_var_ret_weights", "opt_cvar_ret_weights", "opt_sharpe_ret_weights", "opt_maxdd_ret_weights"]:
-        if stats.get(p) is None:
-            stats[p] = "Could not optimise"
-        else:
-            w = stats[p]
-            try:
-                if isinstance(w, dict):
-                    stats[p] = ", ".join(f"{k}: {v:.4f}" for k, v in w.items())
-                elif hasattr(w, 'items'):
-                    stats[p] = ", ".join(f"{k}: {v:.4f}" for k, v in w.items())
-                else:
-                    stats[p] = str(w)
-            except Exception:
-                stats[p] = str(w)
-
-    # create desired table
-    table = {
-        "return": stats["return"],
-        "tables": [
-        {
-            "Variance": {"User Portfolio": stats["user_variance"], "Optimised Portfolio": stats["opt_variance"]},
-            "VaR": {"User Portfolio": stats["user_var"], "Optimised Portfolio": stats["opt_var"]},
-            "CVaR": {"User Portfolio": stats["user_cvar"], "Optimised Portfolio": stats["opt_cvar"]},
-            "Sharpe Ratio": {"User Portfolio": stats["user_sharpe"], "Optimised Portfolio": stats["opt_sharpe"]},
-            "Max Drawdown": {"User Portfolio": stats["user_maxdd"], "Optimised Portfolio": stats["opt_maxdd"]},
-        },
-        {
-            "Variance": {"Optimized Return": stats["opt_variance_ret"]},
-            "VaR": {"Optimized Return": stats["opt_var_ret"]},
-            "CVaR": {"Optimized Return": stats["opt_cvar_ret"]},
-            "Sharpe Ratio": {"Optimized Return": stats["opt_sharpe_ret"]},
-            "Max Drawdown": {"Optimized Return": stats["opt_maxdd_ret"]},
-        },
-        ]
-    }
-    return table
-
-def format_weights_riskm(stats):
-    """Normalize/format weight-containing entries in stats for display.
-
-    This helper is module-level so it can be used in both POST and tests.
-    """
-    if not isinstance(stats, dict):
-        return stats
-    for p in ["opt_max_return_weights"]:
-        if stats.get(p) is None:
-            stats[p] = "Could not optimise"
-        else:
-            w = stats[p]
-            try:
-                if isinstance(w, dict):
-                    stats[p] = ", ".join(f"{k}: {v:.4f}" for k, v in w.items())
-                elif hasattr(w, 'items'):
-                    stats[p] = ", ".join(f"{k}: {v:.4f}" for k, v in w.items())
-                else:
-                    stats[p] = str(w)
-            except Exception:
-                stats[p] = str(w)
-
-    # create desired table
-    table = {
-        "return": stats["return"],
-        "tables": [
-        {
-            "Variance": {"Optimised Portfolio": stats["user_variance"]},
-            "VaR": {"Optimised Portfolio": stats["user_var"]},
-            "CVaR": {"Optimised Portfolio": stats["user_cvar"]},
-            "Sharpe Ratio": {"Optimised Portfolio": stats["user_sharpe"]},
-            "Max Drawdown": {"Optimised Portfolio": stats["user_maxdd"]},
-        }
-        ]
-    }
-    return table
 
 @app.route('/', methods=['GET'])
 def index():
@@ -143,88 +66,86 @@ def mean_variance():
 
     # Collect form data
     stocks = request.form.getlist('stock')
-    weights = request.form.getlist('weight')
+    weight_percents = request.form.getlist('weight')
 
     mean_method = request.form.get("mean_method")
     cov_method = request.form.get("cov_method")
 
+    # Get EWM span parameter
+    try: ewm_span = int(request.form.get('ewm_span', 30))
+    except Exception: ewm_span = 30
+
     # optional train/test months from the user
-    try:
-        train_months = int(request.form.get('train_months', 36))
-    except Exception:
-        train_months = 36
-    try:
-        test_months = int(request.form.get('test_months', 3))
-    except Exception:
-        test_months = 3
+    try: train_months = int(request.form.get('train_months', 36))
+    except Exception: train_months = 36
+    try: test_months = int(request.form.get('test_months', 3))
+    except Exception: test_months = 3
 
     # basic form validation
     if len(stocks) != len(set(stocks)):
         error = "Your portfolio stocks must be unique."
-        return render_template('index.html', error=error, stocks=stocks, weights=weights, stock_options=stocks_list, mean_method=mean_method, cov_method=cov_method)
+        return render_template('index.html', error=error, stocks=stocks, weights=weight_percents, stock_options=stocks_list, mean_method=mean_method, cov_method=cov_method)
 
     try:
-        weight_vals = [float(w) for w in weights]
+        weights = [float(w) for w in weight_percents]
     except Exception:
         error = "Invalid weight values."
-        return render_template('index.html', error=error, stocks=stocks, weights=weights, stock_options=stocks_list, mean_method=mean_method, cov_method=cov_method)
+        return render_template('index.html', error=error, stocks=stocks, weights=weight_percents, stock_options=stocks_list, mean_method=mean_method, cov_method=cov_method)
 
-    if abs(sum(weight_vals) - 100.0) > 1e-6:
+    if abs(sum(weights) - 100.0) > 1e-6:
         error = "Your portfolio weights must sum to 100%."
-        return render_template('index.html', error=error, stocks=stocks, weights=weights, stock_options=stocks_list, mean_method=mean_method, cov_method=cov_method)
+        return render_template('index.html', error=error, stocks=stocks, weights=weight_percents, stock_options=stocks_list, mean_method=mean_method, cov_method=cov_method)
+    weights = dict(zip(stocks, [float(w)/100 for w in weights]))
 
-    # Perform the heavy work inside try so we can show a clean error on failure
-    # try:
-    # lazy imports to avoid failing at module import time if heavy deps are missing
-    from portfolio import portfolio
-    from graph import generate_frontier_graph, generate_backtrader_plots
 
-    # Get EWM span parameter
     try:
-        ewm_span = int(request.form.get('ewm_span', 30))
-    except Exception:
-        ewm_span = 30
+        pfo = portfolio(stocks, mean_method, cov_method, ewm_span=ewm_span)
 
-    pfo = portfolio(stocks, mean_method, cov_method, user_weights=weights, ewm_span=ewm_span)
+        # split and use train for optimisation
+        train_df, test_df, used_train, used_test, total_months = pfo.split_train_test(train_months, test_months)
+        pfo.use_df(train_df)
 
-    # split and use train for optimisation
-    train_df, test_df, used_train, used_test, total_months = pfo.split_train_test(train_months, test_months)
-    pfo.use_df(train_df)
+        pfo.calculate_frontiers()
+        train_return_results, train_risk_results = pfo.optimize_user_portfolio(weights=weights)
+        if train_return_results.variance.success is not None:
+            return render_template('index.html', error=train_return_results.variance.success, stocks=stocks, weights=weight_percents, stock_options=stocks_list, mean_method=mean_method, cov_method=cov_method)
+        if train_risk_results.variance.success is not None:
+            return render_template('index.html', error=train_return_results.variance.success, stocks=stocks, weights=weight_percents, stock_options=stocks_list, mean_method=mean_method, cov_method=cov_method)
 
-    pfo.calculate_frontiers()
-    pfo.optimize_user_portfolio()
-    train_metrics = pfo.portfolio_metrics() # with train data
-    test_metrics = pfo.portfolio_metrics(test_df) # with test_data
-    graph_htmls = generate_frontier_graph(pfo, train_metrics)  # frontier graphs
+        test_return_results = compute_test_metrics(pfo, test_df=test_df, train_results=train_return_results)
+        test_risk_results   = compute_test_metrics(pfo, test_df=test_df, train_results=train_risk_results)
+        user_train_metrics = pfo.portfolio_metrics([weights])[0]
+        user_test_metrics = pfo.portfolio_metrics([weights], df=test_df)[0]
 
-    # Generate backtrader plots instead of old Plotly ones
-    # We need test_df to determine the date ranges for backtrader
-    backtest_plots_data = generate_backtrader_plots(pfo, test_df, train_metrics, months_list=(1, 2, 3))
+        graph_htmls = generate_frontier_graph(pfo, user_pf=user_train_metrics, opt_for_risk=train_risk_results, opt_for_return=train_return_results)  # frontier graphs
+        # We need test_df to determine the date ranges for backtrader
+        backtest_plots_data = generate_backtrader_plots(pfo, test_df_for_dates=test_df, opt_for_risk=train_risk_results, opt_for_return=train_return_results, user_pf=user_train_metrics, months_list=(1, 2, 3))
 
-    train_stats = format_weights_mv(train_metrics)
-    test_stats = format_weights_mv(test_metrics)
-    stats = {
-        "train": train_stats,
-        "test": test_stats,
-        "weights": {
-            "Variance-Optimised Weights": train_metrics["opt_variance_weights"],
-            "VaR-Optimised Weights": train_metrics["opt_var_weights"],
-            "CVaR-Optimised Weights": train_metrics["opt_cvar_weights"],
-            "Sharpe-Optimised Weights": train_metrics["opt_sharpe_weights"],
-            "MaxDD-Optimised Weights": train_metrics["opt_maxdd_weights"],
-            "Return-Optimized Variance Weights": train_metrics["opt_variance_ret_weights"],
-            "Return-Optimized VaR Weights": train_metrics["opt_var_ret_weights"],
-            "Return-Optimized CVaR Weights": train_metrics["opt_cvar_ret_weights"],
-            "Return-Optimized Sharpe Weights": train_metrics["opt_sharpe_ret_weights"],
-            "Return-Optimized MaxDD Weights": train_metrics["opt_maxdd_ret_weights"],
+        train_stats = format_weights_mv(stats=user_train_metrics, opt_return=train_return_results, opt_risk=train_risk_results)
+        test_stats = format_weights_mv(stats=user_test_metrics, opt_return=test_return_results, opt_risk=test_risk_results)
+        stats = {
+            "train": train_stats,
+            "test": test_stats,
+            "weights": {
+                "Variance-Optimised Weights": train_return_results.variance.weights,
+                "VaR-Optimised Weights": train_return_results.var.weights,
+                "CVaR-Optimised Weights": train_return_results.cvar.weights,
+                "Sharpe-Optimised Weights": train_return_results.sharpe.weights,
+                "MaxDD-Optimised Weights": train_return_results.maxdd.weights,
+
+                "Return-Optimized Variance Weights": train_risk_results.variance.weights,
+                "Return-Optimized VaR Weights": train_risk_results.var.weights,
+                "Return-Optimized CVaR Weights": train_risk_results.cvar.weights,
+                "Return-Optimized Sharpe Weights": train_risk_results.sharpe.weights,
+                "Return-Optimized MaxDD Weights": train_risk_results.maxdd.weights,
+            }
         }
-    }
-    return render_template('index.html', stats=stats, graph_htmls=graph_htmls, backtest_plots_data=backtest_plots_data, used_train=used_train, used_test=used_test, total_months=total_months, train_months=train_months, test_months=test_months, stocks=stocks, weights=weights, stock_options=stocks_list, mean_method=mean_method, cov_method=cov_method)
-    # except Exception as e:
-    #     # If heavy deps are missing or an error happens, show a friendly error and the GET view data
-    #     return render_template('index.html', error=str(e), stock_options=stocks_list)
+        return render_template('index.html', stats=stats, graph_htmls=graph_htmls, backtest_plots_data=backtest_plots_data, used_train=used_train, used_test=used_test, total_months=total_months, train_months=train_months, test_months=test_months, stocks=stocks, weights=weights, stock_options=stocks_list, mean_method=mean_method, cov_method=cov_method)
 
-    # return render_template('index.html', stock_options=stocks_list, total_months=total_months)
+    except Exception as e:
+        print(e)
+        return render_template('index.html', error=str(e), stock_options=stocks_list)
+
 
 @app.route('/risk_opt', methods=['POST'])
 def risk_opt():
@@ -265,20 +186,102 @@ def risk_opt():
         return render_template('index.html', error=error, stocks=stocks, stock_options=stocks_list, riskvalue=risk_value, risktype=risk_type, mean_method=mean_method, cov_method=cov_method)
     print("target risk", risk_value)
 
-
-    # Perform the heavy work inside try so we can show a clean error on failure
-    # try:
-    # lazy imports to avoid failing at module import time if heavy deps are missing
-    from portfolio import portfolio
-    from graph import generate_frontier_graph, generate_backtrader_plots
-
-    # Get EWM span parameter
     try:
         ewm_span = int(request.form.get('ewm_span', 30))
     except Exception:
         ewm_span = 30
 
-    pfo = portfolio(stocks, mean_method, cov_method, ewm_span=ewm_span)
+    # Perform the heavy work inside try so we can show a clean error on failure
+    try:
+        pfo = portfolio(stocks, mean_method, cov_method, ewm_span=ewm_span)
+
+        # split and use train for optimisation
+        train_df, test_df, used_train, used_test, total_months = pfo.split_train_test(train_months, test_months)
+        pfo.use_df(train_df)
+
+        pfo.calculate_frontiers()
+
+        # optimise target risk and set as user weights
+        if risk_type == 'variance': opt = pfo.optimize_max_return_for_volatility(risk_value)
+        elif risk_type == 'cvar': opt = pfo.optimize_max_return_for_cvar(risk_value)
+        elif risk_type == 'var': opt = pfo.optimize_max_return_for_var(risk_value)
+        elif risk_type == 'sharpe': opt = pfo.optimize_max_return_for_sharpe(risk_value)
+        elif risk_type == 'maxdd': opt = pfo.optimize_max_return_for_maxdd(risk_value)
+        else:
+            return render_template('index.html', error=f"Invalid risk metric {risk_type}", stocks=stocks, stock_options=stocks_list, riskvalue=risk_value, mean_method=mean_method, cov_method=cov_method)
+
+        if isinstance(opt, str):
+            print("error:", opt)
+            error = f"Could not optimise on target risk {risk_value}: {opt}"
+            return render_template('index.html', error=error, stocks=stocks, stock_options=stocks_list, riskvalue=risk_value, risktype=risk_type, mean_method=mean_method, cov_method=cov_method)
+        print(opt)
+
+        train_metrics = pfo.portfolio_metrics([opt.weights])[0] # with train data
+        test_metrics = pfo.portfolio_metrics([opt.weights], df=test_df)[0] # with test_data
+
+        # Generate backtrader plots instead of old Plotly ones
+        opt_container = OptimizationResultsContainer()
+        opt_container.__setattr__(risk_type, train_metrics)
+        backtest_plots_data = generate_backtrader_plots(pfo, test_df_for_dates=test_df, opt_for_risk=opt_container, opt_for_return=OptimizationResultsContainer(), months_list=(1, 2, 3))
+
+        # for all additional points to be rendered
+        for attr_name in OptimizationResultsContainer.model_fields.keys():
+            setattr(opt_container, attr_name, train_metrics)        
+        graph_htmls = generate_frontier_graph(pfo, opt_for_risk=opt_container)  # frontier graphs
+
+        train_stats = format_weights_risk(train_metrics)
+        test_stats = format_weights_risk(test_metrics)
+
+        stats = {"train": train_stats, "test": test_stats, "weights": {"Optimised return": opt.weights}}
+
+        return render_template('index.html', stats=stats, graph_htmls=graph_htmls, backtest_plots_data=backtest_plots_data, used_train=used_train, used_test=used_test, total_months=total_months, train_months=train_months, test_months=test_months, stocks=stocks, stock_options=stocks_list, riskvalue=risk_value, risktype=risk_type, mean_method=mean_method, cov_method=cov_method)
+
+    except Exception as e:
+        print(e)
+        return render_template('index.html', error=str(e), stock_options=stocks_list)
+
+
+@app.route('/return_opt', methods=['POST'])
+def return_opt():
+
+    if request.method != 'POST':
+        return redirect(url_for('index'))
+
+    files = os.listdir(data_directory)
+    stocks_list = [f.split('.')[0] for f in files if os.path.isfile(os.path.join(data_directory, f))]
+
+    # Collect form data
+    stocks = request.form.getlist('stock')
+    target_return = request.form.get("return_value")
+
+    mean_method = request.form.get("mean_method")
+    cov_method = request.form.get("cov_method")
+
+    # optional train/test months from the user
+    try:
+        train_months = int(request.form.get('train_months', 36))
+    except Exception:
+        train_months = 36
+    try:
+        test_months = int(request.form.get('test_months', 3))
+    except Exception:
+        test_months = 3
+
+    # basic form validation
+    if len(stocks) != len(set(stocks)):
+        error = "Your portfolio stocks must be unique."
+        return render_template('index.html', error=error, stocks=stocks, stock_options=stocks_list, returnval=target_return, mean_method=mean_method, cov_method=cov_method)
+
+    try:
+        target_return = float(target_return)/100
+    except (TypeError, ValueError):
+        error = "Invalid return value"
+        return render_template('index.html', error=error, stocks=stocks, stock_options=stocks_list, returnval=target_return, mean_method=mean_method, cov_method=cov_method)
+    print("target return", target_return)
+
+
+    # try:
+    pfo = portfolio(stocks, mean_method, cov_method)
 
     # split and use train for optimisation
     train_df, test_df, used_train, used_test, total_months = pfo.split_train_test(train_months, test_months)
@@ -287,46 +290,40 @@ def risk_opt():
     pfo.calculate_frontiers()
 
     # optimise target risk and set as user weights
-    if risk_type == 'variance':
-        opt_w = pfo.optimize_max_return_for_volatility(risk_value)
-    elif risk_type == 'cvar':
-        opt_w = pfo.optimize_max_return_for_cvar(risk_value)
-    elif risk_type == 'var':
-        print("CALLING VAR")
-        opt_w = pfo.optimize_max_return_for_var(risk_value)
-    elif risk_type == 'sharpe':
-        opt_w = pfo.optimize_max_return_for_sharpe(risk_value)
-    elif risk_type == 'maxdd':
-        opt_w = pfo.optimize_max_return_for_maxdd(risk_value)
-    else:
-        return render_template('index.html', error=f"Invalid risk metric {risk_type}", stocks=stocks, stock_options=stocks_list, riskvalue=risk_value, mean_method=mean_method, cov_method=cov_method)
-    print(opt_w)
+    train_return_results, _ = pfo.optimize_user_portfolio(ret=True, risk=False, targetR=target_return)
 
-    if opt_w is None:
-        print("error:", pfo.opt_max_return)
-        error = f"Could not optimise on target risk {risk_value}: {pfo.opt_max_return}"
-        return render_template('index.html', error=error, stocks=stocks, stock_options=stocks_list, riskvalue=risk_value, risktype=risk_type, mean_method=mean_method, cov_method=cov_method)
-    pfo.user_weights = opt_w[2]
+    if all(port.success is not None for _, port in train_return_results.items()):
+        bounds = (float(pfo.mu.min() + 1e-6)*100, float(pfo.mu.max() - 1e-6)*100)
+        error = f"Could not optimise on target. Try with a return value in {bounds}"
+        return render_template('index.html', error=error, stocks=stocks, stock_options=stocks_list, returnval=target_return*100, mean_method=mean_method, cov_method=cov_method)
 
-    train_metrics = pfo.portfolio_metrics() # with train data
-    test_metrics = pfo.portfolio_metrics(test_df) # with test_data
-    graph_htmls = generate_frontier_graph(pfo, train_metrics)  # frontier graphs
+    test_return_results = compute_test_metrics(pfo, test_df=test_df, train_results=train_return_results)
 
-    # Generate backtrader plots instead of old Plotly ones
-    backtest_plots_data = generate_backtrader_plots(pfo, test_df, train_metrics, months_list=(1, 2, 3))
+    graph_htmls = generate_frontier_graph(pfo, opt_for_return=train_return_results)  # frontier graphs
+    # We need test_df to determine the date ranges for backtrader
+    backtest_plots_data = generate_backtrader_plots(pfo, test_df_for_dates=test_df, opt_for_return=train_return_results, opt_for_risk=OptimizationResultsContainer(), months_list=(1, 2, 3))
 
-    train_stats = format_weights_riskm(train_metrics)
-    test_stats = format_weights_riskm(test_metrics)
+    train_stats = format_weights_return(train_return_results)
+    test_stats = format_weights_return(test_return_results)
 
-    stats = {"train": train_stats, "test": test_stats, "weights": {"Optimised return": train_metrics["opt_max_return_weights"]}}
+    stats = {
+        "train": train_stats,
+        "test": test_stats,
+        "weights": {
+                "Variance-Optimised Weights": train_return_results.variance.weights,
+                "VaR-Optimised Weights": train_return_results.var.weights,
+                "CVaR-Optimised Weights": train_return_results.cvar.weights,
+                "Sharpe-Optimised Weights": train_return_results.sharpe.weights,
+                "MaxDD-Optimised Weights": train_return_results.maxdd.weights,
+        }
+    }
 
+    return render_template('index.html', stats=stats, graph_htmls=graph_htmls, backtest_plots_data=backtest_plots_data, used_train=used_train, used_test=used_test, total_months=total_months, train_months=train_months, test_months=test_months, stocks=stocks, stock_options=stocks_list, returnval=target_return*100, mean_method=mean_method, cov_method=cov_method)
 
-    return render_template('index.html', stats=stats, graph_htmls=graph_htmls, backtest_plots_data=backtest_plots_data, used_train=used_train, used_test=used_test, total_months=total_months, train_months=train_months, test_months=test_months, stocks=stocks, stock_options=stocks_list, riskvalue=risk_value, risktype=risk_type, mean_method=mean_method, cov_method=cov_method)
     # except Exception as e:
-    #     # If heavy deps are missing or an error happens, show a friendly error and the GET view data
     #     return render_template('index.html', error=str(e), stock_options=stocks_list)
 
-    # return render_template('index.html', stock_options=stocks_list, total_months=total_months)
+
 
 @app.route('/about')
 def about():
