@@ -1,11 +1,13 @@
-import os
 import plotly.graph_objs as go
-from portfolio import portfolio
 import pandas as pd
-import numpy as np
-import matplotlib
+import matplotlib.pyplot as plt
 from utils import Portfolio, OptimizationResultsContainer
-matplotlib.use('Agg')  # Prevent GUI popups during plot generation
+
+
+def get_cmap(n, name='tab10'):
+    cmap = plt.cm.get_cmap(name)
+    colors = [cmap(i % cmap.N) for i in range(n)]
+    return colors
 
 
 def get_hovertemplate(stock_list, label=None):
@@ -15,21 +17,24 @@ def get_hovertemplate(stock_list, label=None):
         display = label + "<br>" + display
     return display
 
-def html_plot(stocks, points, risk_name, additional_points=None):
-    traces = []
-    if points:
-        risks, returns, weights = [], [], []
-        for pt in points:
-            risks.append(pt[0])
-            returns.append(pt[1])
-            weights.append(pt[2])
 
-        weights_list = [[w[s] for s in stocks] for w in weights]
-        hovertemplate = get_hovertemplate(stocks)
-        traces.append(go.Scatter(
-            x=risks, y=returns, mode='markers+lines', name=risk_name,
-            marker=dict(color="red"), customdata=weights_list, hovertemplate=hovertemplate
-        ))
+def html_plot(stocks, points_list, risk_name, additional_points=None):
+    traces = []
+    if points_list and any(points_list):
+        colors = ['red', 'brown']
+        for i, points in enumerate(points_list):
+            risks, returns, weights = [], [], []
+            for pt in points:
+                risks.append(pt[0])
+                returns.append(pt[1])
+                weights.append(pt[2])
+
+            weights_list = [[w[s] for s in stocks] for w in weights]
+            hovertemplate = get_hovertemplate(stocks)
+            traces.append(go.Scatter(
+                x=risks, y=returns, mode='markers+lines', name=risk_name,
+                marker=dict(color=colors[i]), customdata=weights_list, hovertemplate=hovertemplate
+            ))
     else:
         traces.append(go.Scatter(x=[0], y=[0], mode='text',
                                  text=["No efficient frontier points found."], showlegend=False))
@@ -77,10 +82,20 @@ def generate_frontier_graph(pfo, user_pf: Portfolio = None, opt_for_risk: Optimi
                 (getattr(ret_pf, metric_name), ret_pf.return_, ret_pf.weights, "Return-Optimized Portfolio")
             )
 
-        frontier_coords = [
+        main_frontier = [
             (getattr(p, metric_name), p.return_, p.weights) for p in frontier_points if isinstance(p, Portfolio)
         ]
-        frontiers.append(html_plot(pfo.stocks, frontier_coords, risk_label, add_vars))
+        tangent_frontier = [
+            (getattr(p.tangent, metric_name), p.tangent.return_, p.tangent.weights)
+            for p in frontier_points
+            if isinstance(p, Portfolio) and p.tangent is not None and p.tangent.weights is not None
+        ]
+
+        frontier_lists = [main_frontier]
+        if tangent_frontier:
+            frontier_lists.append(tangent_frontier)
+
+        frontiers.append(html_plot(pfo.stocks, frontier_lists, risk_label, add_vars))
 
     # Call for each risk metric
     add_frontier("variance", pfo.mv_frontier_pts, "Variance")

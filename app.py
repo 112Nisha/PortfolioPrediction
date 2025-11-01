@@ -5,6 +5,7 @@ from datetime import datetime
 from portfolio import portfolio, compute_test_metrics
 from graph import generate_frontier_graph, generate_backtrader_plots
 from utils import *
+from utils import extract_params
 
 app = Flask(__name__)
 data_directory = './data'  # Replace with the desired path
@@ -61,56 +62,40 @@ def mean_variance():
     if request.method != 'POST':
         return redirect(url_for('index'))
 
-    files = os.listdir(data_directory)
-    stocks_list = [f.split('.')[0] for f in files if os.path.isfile(os.path.join(data_directory, f))]
+    ctx = extract_params(request, data_directory)
+    if ctx.error is not None:
+        print("CTX ERROR", ctx.error)
+        return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
-    # Collect form data
-    stocks = request.form.getlist('stock')
-    weight_percents = request.form.getlist('weight')
-
-    mean_method = request.form.get("mean_method")
-    cov_method = request.form.get("cov_method")
-
-    # Get EWM span parameter
-    try: ewm_span = int(request.form.get('ewm_span', 30))
-    except Exception: ewm_span = 30
-
-    # optional train/test months from the user
-    try: train_months = int(request.form.get('train_months', 36))
-    except Exception: train_months = 36
-    try: test_months = int(request.form.get('test_months', 3))
-    except Exception: test_months = 3
-
-    # basic form validation
-    if len(stocks) != len(set(stocks)):
-        error = "Your portfolio stocks must be unique."
-        return render_template('index.html', error=error, stocks=stocks, weights=weight_percents, stock_options=stocks_list, mean_method=mean_method, cov_method=cov_method)
 
     try:
-        weights = [float(w) for w in weight_percents]
+        weights = [float(w) for w in ctx.weights]
     except Exception:
-        error = "Invalid weight values."
-        return render_template('index.html', error=error, stocks=stocks, weights=weight_percents, stock_options=stocks_list, mean_method=mean_method, cov_method=cov_method)
+        ctx.error = "Invalid weight values."
+        return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
     if abs(sum(weights) - 100.0) > 1e-6:
-        error = "Your portfolio weights must sum to 100%."
-        return render_template('index.html', error=error, stocks=stocks, weights=weight_percents, stock_options=stocks_list, mean_method=mean_method, cov_method=cov_method)
-    weights = dict(zip(stocks, [float(w)/100 for w in weights]))
+        ctx.error = "Your portfolio weights must sum to 100%."
+        return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
+    weights = dict(zip(ctx.stocks, [float(w)/100 for w in ctx.weights]))
+    rf = ctx.risk_free / 100
 
     try:
-        pfo = portfolio(stocks, mean_method, cov_method, ewm_span=ewm_span)
+        pfo = portfolio(ctx.stocks, ctx.mean_method, ctx.cov_method, ewm_span=ctx.ewm_span)
 
         # split and use train for optimisation
-        train_df, test_df, used_train, used_test, total_months = pfo.split_train_test(train_months, test_months)
+        train_df, test_df, used_train, used_test, total_months = pfo.split_train_test(ctx.train_months, ctx.test_months)
         pfo.use_df(train_df)
 
-        pfo.calculate_frontiers()
-        train_return_results, train_risk_results = pfo.optimize_user_portfolio(weights=weights)
-        if train_return_results.variance.success is not None:
-            return render_template('index.html', error=train_return_results.variance.success, stocks=stocks, weights=weight_percents, stock_options=stocks_list, mean_method=mean_method, cov_method=cov_method)
-        if train_risk_results.variance.success is not None:
-            return render_template('index.html', error=train_return_results.variance.success, stocks=stocks, weights=weight_percents, stock_options=stocks_list, mean_method=mean_method, cov_method=cov_method)
+        pfo.calculate_frontiers(rf=rf)
+        train_return_results, train_risk_results = pfo.optimize_user_portfolio(weights=weights, rf=rf)
+        if train_return_results.variance.error is not None:  # pyright: ignore[reportOptionalMemberAccess]
+            ctx.error = train_return_results.variance.error
+            return render_template('index.html', **ctx.model_dump(exclude_none=True))
+        if train_risk_results.variance.error is not None:
+            ctx.error = train_return_results.variance.error
+            return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
         test_return_results = compute_test_metrics(pfo, test_df=test_df, train_results=train_return_results)
         test_risk_results   = compute_test_metrics(pfo, test_df=test_df, train_results=train_risk_results)
@@ -140,12 +125,23 @@ def mean_variance():
                 "Return-Optimized MaxDD Weights": train_risk_results.maxdd.weights,
             }
         }
-        return render_template('index.html', stats=stats, graph_htmls=graph_htmls, backtest_plots_data=backtest_plots_data, used_train=used_train, used_test=used_test, total_months=total_months, train_months=train_months, test_months=test_months, stocks=stocks, weights=weights, stock_options=stocks_list, mean_method=mean_method, cov_method=cov_method)
+
+        ctx = IndexContext(
+            **ctx.model_dump(exclude_none=True),
+            stats=stats, 
+            graph_htmls=graph_htmls, 
+            backtest_plots_data=backtest_plots_data,
+            used_train=used_train, 
+            used_test=used_test, 
+            total_months=total_months, 
+        )
+        return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
     except Exception as e:
-        # raise Exception(e)
+        raise Exception(e)
         print(e)
-        return render_template('index.html', error=str(e), stock_options=stocks_list)
+        ctx.error = str(e)
+        return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
 
 @app.route('/risk_opt', methods=['POST'])
@@ -154,53 +150,27 @@ def risk_opt():
     if request.method != 'POST':
         return redirect(url_for('index'))
 
-    files = os.listdir(data_directory)
-    stocks_list = [f.split('.')[0] for f in files if os.path.isfile(os.path.join(data_directory, f))]
+    ctx = extract_params(request, data_directory)
+    if ctx.error is not None:
+        return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
-    # Collect form data
-    stocks = request.form.getlist('stock')
-    risk_type = request.form.get("risk_metric")
-    risk_value = request.form.get("risk_value")
+    risk_type = ctx.risktype
+    risk_value = ctx.riskvalue
+    if risk_type is None or risk_value is None:
+        ctx.error = "Please choose a risk type."
+        return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
-    mean_method = request.form.get("mean_method")
-    cov_method = request.form.get("cov_method")
-
-    # optional train/test months from the user
-    try:
-        train_months = int(request.form.get('train_months', 36))
-    except Exception:
-        train_months = 36
-    try:
-        test_months = int(request.form.get('test_months', 3))
-    except Exception:
-        test_months = 3
-
-    # basic form validation
-    if len(stocks) != len(set(stocks)):
-        error = "Your portfolio stocks must be unique."
-        return render_template('index.html', error=error, stocks=stocks, stock_options=stocks_list, riskvalue=risk_value, risktype=risk_type, mean_method=mean_method, cov_method=cov_method)
-
-    try:
-        risk_value = float(risk_value)
-    except (TypeError, ValueError):
-        error = "Invalid risk value"
-        return render_template('index.html', error=error, stocks=stocks, stock_options=stocks_list, riskvalue=risk_value, risktype=risk_type, mean_method=mean_method, cov_method=cov_method)
-    print("target risk", risk_value)
-
-    try:
-        ewm_span = int(request.form.get('ewm_span', 30))
-    except Exception:
-        ewm_span = 30
+    rf = ctx.risk_free / 100
 
     # Perform the heavy work inside try so we can show a clean error on failure
     try:
-        pfo = portfolio(stocks, mean_method, cov_method, ewm_span=ewm_span)
+        pfo = portfolio(ctx.stocks, ctx.mean_method, ctx.cov_method, ewm_span=ctx.ewm_span)
 
         # split and use train for optimisation
-        train_df, test_df, used_train, used_test, total_months = pfo.split_train_test(train_months, test_months)
+        train_df, test_df, used_train, used_test, total_months = pfo.split_train_test(ctx.train_months, ctx.test_months)
         pfo.use_df(train_df)
 
-        pfo.calculate_frontiers()
+        pfo.calculate_frontiers(rf=rf)
 
         # optimise target risk and set as user weights
         if risk_type == 'variance': opt = pfo.optimize_max_return_for_volatility(risk_value)
@@ -209,13 +179,14 @@ def risk_opt():
         elif risk_type == 'sharpe': opt = pfo.optimize_max_return_for_sharpe(risk_value)
         elif risk_type == 'maxdd': opt = pfo.optimize_max_return_for_maxdd(risk_value)
         else:
-            return render_template('index.html', error=f"Invalid risk metric {risk_type}", stocks=stocks, stock_options=stocks_list, riskvalue=risk_value, mean_method=mean_method, cov_method=cov_method)
+            ctx.error = f"Invalid risk metric {risk_type}"
+            return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
-        if opt.success is not None:
-            print("error:", opt.success)
-            error = f"Could not optimise on target risk {risk_value}: {opt.success}"
-            return render_template('index.html', error=error, stocks=stocks, stock_options=stocks_list, riskvalue=risk_value, risktype=risk_type, mean_method=mean_method, cov_method=cov_method)
         print(opt)
+        if opt.error is not None:
+            print("error:", opt.error)
+            ctx.error = f"Could not optimise on target risk {risk_value}: {opt.error}"
+            return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
         train_metrics = pfo.portfolio_metrics([opt.weights])[0] # with train data
         test_metrics = pfo.portfolio_metrics([opt.weights], df=test_df)[0] # with test_data
@@ -235,11 +206,22 @@ def risk_opt():
 
         stats = {"train": train_stats, "test": test_stats, "weights": {"Optimised return": opt.weights}}
 
-        return render_template('index.html', stats=stats, graph_htmls=graph_htmls, backtest_plots_data=backtest_plots_data, used_train=used_train, used_test=used_test, total_months=total_months, train_months=train_months, test_months=test_months, stocks=stocks, stock_options=stocks_list, riskvalue=risk_value, risktype=risk_type, mean_method=mean_method, cov_method=cov_method)
+        print(ctx)
+        ctx = IndexContext(
+            **ctx.model_dump(exclude_none=True),
+            stats=stats, 
+            graph_htmls=graph_htmls, 
+            backtest_plots_data=backtest_plots_data,
+            used_train=used_train, 
+            used_test=used_test, 
+            total_months=total_months, 
+        )
+        return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
     except Exception as e:
-        print(e)
-        return render_template('index.html', error=str(e), stock_options=stocks_list)
+        raise Exception(e)
+        ctx.error = str(e)
+        return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
 
 @app.route('/return_opt', methods=['POST'])
@@ -248,82 +230,70 @@ def return_opt():
     if request.method != 'POST':
         return redirect(url_for('index'))
 
-    files = os.listdir(data_directory)
-    stocks_list = [f.split('.')[0] for f in files if os.path.isfile(os.path.join(data_directory, f))]
+    ctx = extract_params(request, data_directory)
+    if ctx.error is not None:
+        return render_template('index.html', **ctx.model_dump(exclude_none=True))
+    if ctx.returnval is None:
+        ctx.error = "Invalid portfolio target return"
+        return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
-    # Collect form data
-    stocks = request.form.getlist('stock')
-    target_return = request.form.get("return_value")
-
-    mean_method = request.form.get("mean_method")
-    cov_method = request.form.get("cov_method")
-
-    # optional train/test months from the user
-    try:
-        train_months = int(request.form.get('train_months', 36))
-    except Exception:
-        train_months = 36
-    try:
-        test_months = int(request.form.get('test_months', 3))
-    except Exception:
-        test_months = 3
-
-    # basic form validation
-    if len(stocks) != len(set(stocks)):
-        error = "Your portfolio stocks must be unique."
-        return render_template('index.html', error=error, stocks=stocks, stock_options=stocks_list, returnval=target_return, mean_method=mean_method, cov_method=cov_method)
+    target_return = ctx.returnval / 100
+    rf = ctx.risk_free / 100
 
     try:
-        target_return = float(target_return)/100
-    except (TypeError, ValueError):
-        error = "Invalid return value"
-        return render_template('index.html', error=error, stocks=stocks, stock_options=stocks_list, returnval=target_return, mean_method=mean_method, cov_method=cov_method)
-    print("target return", target_return)
+        pfo = portfolio(ctx.stocks, ctx.mean_method, ctx.cov_method)
 
+        # split and use train for optimisation
+        train_df, test_df, used_train, used_test, total_months = pfo.split_train_test(ctx.train_months, ctx.test_months)
+        pfo.use_df(train_df)
 
-    # try:
-    pfo = portfolio(stocks, mean_method, cov_method)
+        pfo.calculate_frontiers(rf=rf)
 
-    # split and use train for optimisation
-    train_df, test_df, used_train, used_test, total_months = pfo.split_train_test(train_months, test_months)
-    pfo.use_df(train_df)
+        # optimise target risk and set as user weights
+        train_return_results, _ = pfo.optimize_user_portfolio(ret=True, risk=False, targetR=target_return, rf=rf)
+        print(train_return_results.items())
 
-    pfo.calculate_frontiers()
+        if all(port.error is not None for _, port in train_return_results.items()):
+            bounds = (float(pfo.mu.min() + 1e-6)*100, float(pfo.mu.max() - 1e-6)*100)
+            ctx.error = f"Could not optimise on target. Try with a return value in {bounds}"
+            return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
-    # optimise target risk and set as user weights
-    train_return_results, _ = pfo.optimize_user_portfolio(ret=True, risk=False, targetR=target_return)
+        test_return_results = compute_test_metrics(pfo, test_df=test_df, train_results=train_return_results)
 
-    if all(port.success is not None for _, port in train_return_results.items()):
-        bounds = (float(pfo.mu.min() + 1e-6)*100, float(pfo.mu.max() - 1e-6)*100)
-        error = f"Could not optimise on target. Try with a return value in {bounds}"
-        return render_template('index.html', error=error, stocks=stocks, stock_options=stocks_list, returnval=target_return*100, mean_method=mean_method, cov_method=cov_method)
+        graph_htmls = generate_frontier_graph(pfo, opt_for_return=train_return_results)  # frontier graphs
+        # We need test_df to determine the date ranges for backtrader
+        backtest_plots_data = generate_backtrader_plots(pfo, test_df_for_dates=test_df, opt_for_return=train_return_results, opt_for_risk=OptimizationResultsContainer(), months_list=(1, 2, 3))
 
-    test_return_results = compute_test_metrics(pfo, test_df=test_df, train_results=train_return_results)
+        train_stats = format_weights_return(train_return_results)
+        test_stats = format_weights_return(test_return_results)
 
-    graph_htmls = generate_frontier_graph(pfo, opt_for_return=train_return_results)  # frontier graphs
-    # We need test_df to determine the date ranges for backtrader
-    backtest_plots_data = generate_backtrader_plots(pfo, test_df_for_dates=test_df, opt_for_return=train_return_results, opt_for_risk=OptimizationResultsContainer(), months_list=(1, 2, 3))
-
-    train_stats = format_weights_return(train_return_results)
-    test_stats = format_weights_return(test_return_results)
-
-    stats = {
-        "train": train_stats,
-        "test": test_stats,
-        "weights": {
-                "Variance-Optimised Weights": train_return_results.variance.weights,
-                "VaR-Optimised Weights": train_return_results.var.weights,
-                "CVaR-Optimised Weights": train_return_results.cvar.weights,
-                "Sharpe-Optimised Weights": train_return_results.sharpe.weights,
-                "MaxDD-Optimised Weights": train_return_results.maxdd.weights,
+        stats = {
+            "train": train_stats,
+            "test": test_stats,
+            "weights": {
+                    "Variance-Optimised Weights": train_return_results.variance.weights,
+                    "VaR-Optimised Weights": train_return_results.var.weights,
+                    "CVaR-Optimised Weights": train_return_results.cvar.weights,
+                    "Sharpe-Optimised Weights": train_return_results.sharpe.weights,
+                    "MaxDD-Optimised Weights": train_return_results.maxdd.weights,
+            }
         }
-    }
 
-    return render_template('index.html', stats=stats, graph_htmls=graph_htmls, backtest_plots_data=backtest_plots_data, used_train=used_train, used_test=used_test, total_months=total_months, train_months=train_months, test_months=test_months, stocks=stocks, stock_options=stocks_list, returnval=target_return*100, mean_method=mean_method, cov_method=cov_method)
+        ctx = IndexContext(
+            **ctx.model_dump(exclude_none=True),
+            stats=stats, 
+            graph_htmls=graph_htmls, 
+            backtest_plots_data=backtest_plots_data,
+            used_train=used_train, 
+            used_test=used_test, 
+            total_months=total_months, 
+        )
+        return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
-    # except Exception as e:
-    #     return render_template('index.html', error=str(e), stock_options=stocks_list)
-
+    except Exception as e:
+        raise Exception(e)
+        ctx.error = str(e)
+        return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
 
 @app.route('/about')

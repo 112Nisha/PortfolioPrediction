@@ -1,18 +1,44 @@
-from typing import Dict, Optional, Union
+from typing import Dict, Optional, Any, List
 from pydantic import BaseModel, Field
 import pandas as pd
+import os
 
 __all__ = [
     "format_weights_mv",
     "format_weights_risk",
     "format_weights_return",
     "Portfolio",
-    "OptimizationResultsContainer"
+    "OptimizationResultsContainer",
+    "IndexContext",
 ]
+
+class IndexContext(BaseModel):
+    stats: Optional[Any] = None
+    graph_htmls: Optional[List[str]] = None
+    backtest_plots_data: Optional[Any] = None
+    used_train: Optional[Any] = None
+    used_test: Optional[Any] = None
+    total_months: Optional[int] = None
+    stocks: Optional[List[str]] = None
+    riskvalue: Optional[float] = None
+    risktype: Optional[str] = None
+    returnval: Optional[float] = None
+    error: Optional[str] = None
+    weights: Optional[List[Any]] = None
+
+    mean_method: str
+    cov_method: str
+    stock_options: List[str]
+    train_months: int
+    test_months: int
+    risk_free: Optional[float] = None
+    ewm_span: int
+
+
 
 class Portfolio(BaseModel):
     # Note: None default only exists so that indexing OptimizationResultsContainer never fails.
-    success: Optional[str] = None
+    error: Optional[str] = None
 
     weights: Optional[dict] = None
     return_: Optional[float] = None
@@ -21,6 +47,8 @@ class Portfolio(BaseModel):
     cvar: Optional[float] = None
     sharpe: Optional[float] = None
     maxdd: Optional[float] = None
+
+    tangent: Optional["Portfolio"] = None
 
 # stores Portfolio optimised for each risk metric 
 class OptimizationResultsContainer(BaseModel):
@@ -40,31 +68,62 @@ class OptimizationResultsContainer(BaseModel):
         }.items()
 
 
-def safe_metric_attr(container, metric: str, attr: str):
-    """
-    Returns the attribute of a metric safely.
-    If the metric is None or a string, returns None.
-    """
-    pf = getattr(container, metric, None)
-    if isinstance(pf, Portfolio):
-        return getattr(pf, attr, None)
-    return None
+def extract_params(request, data_directory) -> IndexContext:
+    files = os.listdir(data_directory)
+    stocks_list = [f.split('.')[0] for f in files if os.path.isfile(os.path.join(data_directory, f))]
 
+    # Collect form data
+    stocks = request.form.getlist('stock')
+    try: rf = float(request.form.getlist('risk_free'))
+    except: rf = 7.0 # later make a better default? fetch an actual value?
 
+    mean_method = request.form.get("mean_method")
+    cov_method = request.form.get("cov_method")
 
-def format_weights(w): # Try to delete this
-    """
-    Normalize/format weight-containing entries in stats for display.
-    """
+    # Get EWM span parameter
+    try: ewm_span = int(request.form.get('ewm_span', 30))
+    except Exception: ewm_span = 30
+
+    # optional train/test months from the user
+    try: train_months = int(request.form.get('train_months', 36))
+    except Exception: train_months = 36
+    try: test_months = int(request.form.get('test_months', 3))
+    except Exception: test_months = 3
+
+    ctx = IndexContext(
+        stocks=stocks, 
+        stock_options=stocks_list, 
+        mean_method=mean_method, 
+        cov_method=cov_method,
+        train_months=train_months, 
+        test_months=test_months,
+        risk_free=rf,
+        ewm_span=ewm_span
+    )
+
+    # basic form validation
+    if len(stocks) != len(set(stocks)):
+        ctx.error = "Your portfolio stocks must be unique."
+
+    # check for unique stocks
+    try: 
+        weight_percents = request.form.getlist('weight')
+        if len(weight_percents) > 0:
+            ctx.weights = weight_percents
+    except: pass
+
     try:
-        if isinstance(w, dict):
-            return ", ".join(f"{k}: {v:.4f}" for k, v in w.items())
-        elif hasattr(w, 'items'):
-            return ", ".join(f"{k}: {v:.4f}" for k, v in w.items())
-        else:
-            return str(w)
-    except Exception:
-        return str(w)
+        ctx.risktype = request.form.get("risk_metric")
+        ctx.riskvalue = float(request.form.get("risk_value"))
+    except: pass
+
+    try:
+        ctx.returnval = float(request.form.get("return_value"))
+    except: pass
+
+
+    return ctx
+
 
 def format_weights_mv(stats: Portfolio, opt_risk: OptimizationResultsContainer, opt_return: OptimizationResultsContainer):
 
@@ -89,7 +148,6 @@ def format_weights_mv(stats: Portfolio, opt_risk: OptimizationResultsContainer, 
         ]
     }
     return table
-
 
 def format_weights_risk(opt_risk: Portfolio):
     # create desired table

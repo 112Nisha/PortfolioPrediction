@@ -15,6 +15,11 @@
         {% endif %}
     </div>
 
+    <label class="ms-2">Risk-free %:
+        <input type="number" name="risk_free" value="{{ risk_free | default(7, true) }}" min="0" max="100" step="any"
+            class="risk-free-rate form-control d-inline-block" style="width:100px;">
+    </label>
+
     <label class="ms-2">Return estimation:
         <select class="mean-method form-control d-inline-block" name="mean_method" style="width:250px;">
             <option value="mean_historical" {% if mean_method=='mean_historical' %}selected{% endif %}>
@@ -64,8 +69,10 @@
     </label>
 
     <div class="ewm-span-container ms-2" style="display:none; min-width: 200px;">
-        <label for="ewm-span-slider" class="form-label">EWM Span: <span class="ewm-span-value">{{ ewm_span | default(30) }}</span></label>
-        <input type="range" class="form-range ewm-span-slider" name="ewm_span" min="1" max="120" value="{{ ewm_span | default(30) }}">
+        <label for="ewm-span-slider" class="form-label">EWM Span: <span class="ewm-span-value">{{ ewm_span | default(30)
+                }}</span></label>
+        <input type="range" class="form-range ewm-span-slider" name="ewm_span" min="1" max="120"
+            value="{{ ewm_span | default(30) }}">
     </div>
 </div>
 
@@ -108,7 +115,7 @@
 
         // Attach input event listeners for the sliders to update the displayed value
         ewmSpanSliders.forEach((slider, index) => {
-            slider.addEventListener('input', function() {
+            slider.addEventListener('input', function () {
                 ewmSpanValues[index].textContent = this.value;
             });
         });
