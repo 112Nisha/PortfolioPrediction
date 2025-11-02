@@ -1,7 +1,6 @@
 import os
 import numpy as np
 import pandas as pd
-from functools import reduce
 from pypfopt.efficient_frontier import EfficientCVaR
 from pypfopt import EfficientFrontier, risk_models, expected_returns
 from scipy.optimize import minimize
