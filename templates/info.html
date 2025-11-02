@@ -59,6 +59,65 @@
     </section>
 
     <section class="mb-5">
+        <h2 class="h3">4.1 Choosing Risk Metrics, Mean Methods, and Covariance Estimators</h2>
+        <p>This section provides guidance on which combinations work best in different scenarios, based on empirical experiments run on a diversified dataset of Indian equities.</p>
+
+        <h3 class="h5 mt-3">Recommended Combinations (Summary)</h3>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Scenario</th>
+                    <th>Mean Method</th>
+                    <th>Covariance Estimator</th>
+                    <th>Risk Metric</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Stable long-term portfolios</td>
+                    <td>CAPM</td>
+                    <td>Ledoit-Wolf</td>
+                    <td>Sharpe</td>
+                </tr>
+                <tr>
+                    <td>Downside-risk focus</td>
+                    <td>Mean Historical</td>
+                    <td>Semicovariance</td>
+                    <td>CVaR</td>
+                </tr>
+                <tr>
+                    <td>High-dimensional portfolios</td>
+                    <td>CAPM</td>
+                    <td>Ledoit-Wolf</td>
+                    <td>Variance / Sharpe</td>
+                </tr>
+                <tr>
+                    <td>Highly volatile markets</td>
+                    <td>EWM Mean</td>
+                    <td>EWM Covariance</td>
+                    <td>CVaR</td>
+                </tr>
+                <tr>
+                    <td>Short lookback / noisy data</td>
+                    <td>EWM Mean</td>
+                    <td>Sample Covariance</td>
+                    <td>Variance</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3 class="h5 mt-4">Key Findings</h3>
+        <ul>
+            <li><strong>CAPM</strong> consistently produced the highest Sharpe ratios for diversified portfolios with long historical data.</li>
+            <li><strong>Ledoit-Wolf</strong> gave the most stable covariance estimates, especially with many stocks.</li>
+            <li><strong>Semicovariance</strong> improved downside-risk performance and tail-risk sensitivity.</li>
+            <li><strong>EWM-based methods</strong> adapt better during volatile or regime-shifting periods.</li>
+            <li>Variance and Sharpe remain stable across lookback windows, while CVaR and Max Drawdown react more strongly to data changes.</li>
+            <li>Longer lookback windows (60 months) slightly improved Sharpe ratios, but weights remained highly stable across all windows.</li>
+        </ul>
+    </section>
+
+    <section class="mb-5">
         <h2 class="h3">5. Optimization Goals</h2>
         <p>Our application supports two main approaches to portfolio optimization:</p>
         <ul>
