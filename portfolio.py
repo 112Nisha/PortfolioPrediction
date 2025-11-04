@@ -9,7 +9,6 @@ from scipy.optimize import minimize
 from utils import Portfolio, OptimizationResultsContainer
 import backtrader as bt
 from typing import List
-from pypfopt import expected_returns, risk_models
 
 
 def compute_mu_and_cov(df, mean_method, cov_method, market_prices=None, risk_free_rate=0.0, ewm_span=None) -> tuple[np.ndarray | pd.Series]:
@@ -325,7 +324,6 @@ class portfolio():
             traceback.print_exc()
             return Portfolio(error=f"Tangent optimization failed: {e}")
 
-
     def _point_on_cml(self, tangent_pf, risk_fn, rf, target_return=None, target_risk=None) -> Portfolio:
         """
         Compute any point on the Capital Market Line (CML) numerically
@@ -370,7 +368,6 @@ class portfolio():
             return_=100 * R_sel,
             **{risk_field: risk_sel},
         )
-
 
     def _add_tangent(self, base: Portfolio, risk_fn, rf, target_return = None, target_risk = None) -> Portfolio:
         if rf is None:
@@ -531,7 +528,6 @@ class portfolio():
                 continue
         
         return Portfolio(error=f"Max drawdown optimization failed for {target_return}")
-
 
 
     def optimize_max_return_for_volatility(self, target_volatility) -> Portfolio:
@@ -698,7 +694,6 @@ class portfolio():
             import traceback
             traceback.print_exc()
             return Portfolio(error=f"Sharpe optimisation failed: {e}")
-
 
     def optimize_max_return_for_maxdd(self, target_maxdd) -> Portfolio:
         """Find portfolio with maximum return for given max drawdown constraint."""
