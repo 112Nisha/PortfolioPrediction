@@ -10,18 +10,24 @@
             <table class="table table-bordered mb-4">
                 <thead>
                     <tr>
-                        <th>Risk Measure</th>
+                        <th>Portfolio</th>
                         {%- for col in columns %}
                             <th>{{ col }}</th>
                         {%- endfor %}
                     </tr>
                 </thead>
                 <tbody>
-                    {%- for measure, values in table.items() %}
+                    {%- for portfolio_name, values in table.items() %}
                         <tr>
-                            <td>{{ measure }}</td>
+                            <td>{{ portfolio_name }}</td>
                             {%- for col in columns %}
-                                <td>{{ values[col] | default("N/A") }}</td>
+                                <td>
+                                    {% if col == "Weights" %}
+                                        <pre style="margin: 0; font-size: 0.85em;">{{ values[col] }}</pre>
+                                    {% else %}
+                                        {{ values[col] | default("N/A") | safe }}
+                                    {% endif %}
+                                </td>
                             {%- endfor %}
                         </tr>
                     {%- endfor %}
