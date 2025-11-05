@@ -392,12 +392,12 @@ class portfolio():
             ret_mv, vol_mv, _ = ef_mv.portfolio_performance()
             base = Portfolio(
             weights=w_mv,
-            return_=100*round(ret_mv, 2),
-            variance=round(vol_mv, 2),
-            var=round(self._portfolio_var(w_mv), 2),
-            cvar=round(self._portfolio_cvar(w_mv), 2),
-            sharpe=round(self._portfolio_sharpe(w_mv), 2),
-            maxdd=round(self._portfolio_max_drawdown(w_mv), 2)
+            return_=100*ret_mv,
+            variance=vol_mv,
+            var=self._portfolio_var(w_mv),
+            cvar=self._portfolio_cvar(w_mv),
+            sharpe=self._portfolio_sharpe(w_mv),
+            maxdd=self._portfolio_max_drawdown(w_mv)
             )
             return self._add_tangent(base, self._portfolio_vol, rf, target_return=target_return)
 
@@ -412,12 +412,12 @@ class portfolio():
             ret_c, cvar_risk = ef_c.portfolio_performance()
             base = Portfolio(
             weights=w_c,
-            return_=100*round(ret_c, 2),
-            variance=round(self._portfolio_vol(w_c), 2),
-            var=round(self._portfolio_var(w_c), 2),
-            cvar=round(cvar_risk, 2),
-            sharpe=round(self._portfolio_sharpe(w_c), 2),
-            maxdd=round(self._portfolio_max_drawdown(w_c), 2)
+            return_=100*ret_c,
+            variance=self._portfolio_vol(w_c),
+            var=self._portfolio_var(w_c),
+            cvar=cvar_risk,
+            sharpe=self._portfolio_sharpe(w_c),
+            maxdd=self._portfolio_max_drawdown(w_c)
             )
             return self._add_tangent(base, self._portfolio_cvar, rf, target_return=target_return)
 
@@ -461,12 +461,12 @@ class portfolio():
                 w_var = result.x
                 base = Portfolio(
                 weights=self._as_dict(w_var),
-                return_=100*round(self._portfolio_return(w_var), 2),
-                variance=round(self._portfolio_vol(w_var), 2),
-                var=round(self._portfolio_var(w_var), 2),
-                cvar=round(self._portfolio_cvar(w_var), 2),
-                sharpe=round(self._portfolio_sharpe(w_var), 2),
-                maxdd=round(self._portfolio_max_drawdown(w_var), 2)
+                return_=100*self._portfolio_return(w_var),
+                variance=self._portfolio_vol(w_var),
+                var=self._portfolio_var(w_var),
+                cvar=self._portfolio_cvar(w_var),
+                sharpe=self._portfolio_sharpe(w_var),
+                maxdd=self._portfolio_max_drawdown(w_var)
                 )
                 return self._add_tangent(base, self._portfolio_var, rf, target_return=target_return)
 
@@ -501,12 +501,12 @@ class portfolio():
                 w_sharpe = result.x
                 return Portfolio(
                 weights=self._as_dict(w_sharpe),
-                return_=100*round(self._portfolio_return(w_sharpe), 2),
-                variance=round(self._portfolio_vol(w_sharpe), 2),
-                var=round(self._portfolio_var(w_sharpe), 2),
-                cvar=round(self._portfolio_cvar(w_sharpe), 2),
-                sharpe=round(self._portfolio_sharpe(w_sharpe), 2),
-                maxdd=round(self._portfolio_max_drawdown(w_sharpe), 2)
+                return_=100*self._portfolio_return(w_sharpe),
+                variance=self._portfolio_vol(w_sharpe),
+                var=self._portfolio_var(w_sharpe),
+                cvar=self._portfolio_cvar(w_sharpe),
+                sharpe=self._portfolio_sharpe(w_sharpe),
+                maxdd=self._portfolio_max_drawdown(w_sharpe)
                 )
             else:
                 return Portfolio(error=f"Sharpe optimization failed: {result.message}")
@@ -549,12 +549,12 @@ class portfolio():
                     w_maxdd = result.x
                     base = Portfolio(
                     weights=self._as_dict(w_maxdd),
-                    return_=100*round(self._portfolio_return(w_maxdd), 2),
-                    variance=round(self._portfolio_vol(w_maxdd), 2),
-                    var=round(self._portfolio_var(w_maxdd), 2),
-                    cvar=round(self._portfolio_cvar(w_maxdd), 2),
-                    sharpe=round(self._portfolio_sharpe(w_maxdd), 2),
-                    maxdd=round(self._portfolio_max_drawdown(w_maxdd), 2)
+                    return_=100*self._portfolio_return(w_maxdd),
+                    variance=self._portfolio_vol(w_maxdd),
+                    var=self._portfolio_var(w_maxdd),
+                    cvar=self._portfolio_cvar(w_maxdd),
+                    sharpe=self._portfolio_sharpe(w_maxdd),
+                    maxdd=self._portfolio_max_drawdown(w_maxdd)
                     )
                     return self._add_tangent(base, self._portfolio_max_drawdown, rf, target_return=target_return)
 
@@ -588,12 +588,12 @@ class portfolio():
 
             return Portfolio(
             weights=w_max,
-            return_=100*round(ret_max, 2),
-            variance=round(vol_max, 2),
-            var=round(self._portfolio_var(w_max), 2),
-            cvar=round(self._portfolio_cvar(w_max), 2),
-            sharpe=round(self._portfolio_sharpe(w_max), 2),
-            maxdd=round(self._portfolio_max_drawdown(w_max), 2)
+            return_=100*ret_max,
+            variance=vol_max,
+            var=self._portfolio_var(w_max),
+            cvar=self._portfolio_cvar(w_max),
+            sharpe=self._portfolio_sharpe(w_max),
+            maxdd=self._portfolio_max_drawdown(w_max)
             )
 
         except Exception as e:
@@ -627,12 +627,12 @@ class portfolio():
             
             return Portfolio(
             weights=w_opt,
-            return_=round(100*float(ret_opt), 2),
-            variance=round(self._portfolio_vol(w_opt), 2),
-            var=round(self._portfolio_var(w_opt), 2),
-            cvar=round(cvar_opt, 2),
-            sharpe=round(self._portfolio_sharpe(w_opt), 2),
-            maxdd=round(self._portfolio_max_drawdown(w_opt), 2)
+            return_=100*float(ret_opt),
+            variance=self._portfolio_vol(w_opt),
+            var=self._portfolio_var(w_opt),
+            cvar=cvar_opt,
+            sharpe=self._portfolio_sharpe(w_opt),
+            maxdd=self._portfolio_max_drawdown(w_opt)
         )
 
         except Exception as e:
@@ -684,15 +684,17 @@ class portfolio():
                     raise ValueError(f"Optimization failed: {result.message}")
 
             w_opt = result.x
+            var_opt = self._portfolio_var(result.x)
+            ret_opt = self._portfolio_return(result.x)
 
             return Portfolio(
-                weights=self._as_dict(w_opt),
-                return_=round(100*self._portfolio_return(w_opt), 2),
-                variance=round(self._portfolio_vol(w_opt), 2),
-                var=round(self._portfolio_var(w_opt), 2),
-                cvar=round(self._portfolio_cvar(w_opt), 2),
-                sharpe=round(self._portfolio_sharpe(w_opt), 2),
-                maxdd=round(self._portfolio_max_drawdown(w_opt), 2)
+            weights=self._as_dict(w_opt),
+            return_=100*self._portfolio_return(w_opt),
+            variance=self._portfolio_vol(w_opt),
+            var=self._portfolio_var(w_opt),
+            cvar=self._portfolio_cvar(w_opt),
+            sharpe=self._portfolio_sharpe(w_opt),
+            maxdd=self._portfolio_max_drawdown(w_opt)
         )
 
         
@@ -739,15 +741,17 @@ class portfolio():
             
             if result.success:
                 w_opt = result.x
+                ret_opt = self._portfolio_return(result.x)
+                sharpe_opt = self._portfolio_sharpe(result.x, risk_free_rate)
                 
                 return Portfolio(
                 weights=self._as_dict(w_opt),
-                return_=round(100*self._portfolio_return(w_opt), 2),
-                variance=round(self._portfolio_vol(w_opt), 2),
-                var=round(self._portfolio_var(w_opt), 2),
-                cvar=round(self._portfolio_cvar(w_opt), 2),
-                sharpe=round(self._portfolio_sharpe(w_opt, risk_free_rate), 2),
-                maxdd=round(self._portfolio_max_drawdown(w_opt), 2)
+                return_=100*self._portfolio_return(w_opt),
+                variance=self._portfolio_vol(w_opt),
+                var=self._portfolio_var(w_opt),
+                cvar=self._portfolio_cvar(w_opt),
+                sharpe=self._portfolio_sharpe(w_opt, risk_free_rate),
+                maxdd=self._portfolio_max_drawdown(w_opt)
             )
             else:
                 return Portfolio(error=f"Sharpe optimisation failed: {result.message}")
@@ -792,16 +796,18 @@ class portfolio():
             
             if result.success:
                 w_opt = result.x
+                ret_opt = self._portfolio_return(result.x)
+                maxdd_opt = self._portfolio_max_drawdown(result.x)
                 
                 return Portfolio(
-                    weights=self._as_dict(w_opt),
-                    return_=round(100*self._portfolio_return(w_opt), 2),
-                    variance=round(self._portfolio_vol(w_opt), 2),
-                    var=round(self._portfolio_var(w_opt), 2),
-                    cvar=round(self._portfolio_cvar(w_opt), 2),
-                    sharpe=round(self._portfolio_sharpe(w_opt), 2),
-                    maxdd=round(self._portfolio_max_drawdown(w_opt), 2)
-                )
+                weights=self._as_dict(w_opt),
+                return_=100*self._portfolio_return(w_opt),
+                variance=self._portfolio_vol(w_opt),
+                var=self._portfolio_var(w_opt),
+                cvar=self._portfolio_cvar(w_opt),
+                sharpe=self._portfolio_sharpe(w_opt),
+                maxdd=self._portfolio_max_drawdown(w_opt)
+            )
             else:
                 raise ValueError(f"Optimization failed: {result.message}")
         
