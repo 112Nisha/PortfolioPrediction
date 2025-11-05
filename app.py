@@ -305,4 +305,15 @@ def info():
     return render_template('info.html')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    import argparse
+
+    # Set up command-line argument parsing
+    parser = argparse.ArgumentParser(description="Portfolio Optimization Flask App")
+    parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to bind to (default: 0.0.0.0)')
+    parser.add_argument('--port', type=int, default=8080, help='Port to listen on (default: 8080)')
+    args = parser.parse_args()
+
+    # Use waitress, a production-ready WSGI server
+    from waitress import serve
+    print(f"Starting production server on http://{args.host}:{args.port}")
+    serve(app, host=args.host, port=args.port)
