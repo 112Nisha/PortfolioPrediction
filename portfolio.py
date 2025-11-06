@@ -10,6 +10,13 @@ from utils import Portfolio, OptimizationResultsContainer
 import backtrader as bt
 from typing import List
 
+def calculate_expected_market_return(csv_file='nifty50_data.csv'):
+    df = pd.read_csv(csv_file, parse_dates=['Date'], index_col='Date')
+    df['Daily Return'] = df['Adj Close'] / df['Adj Close'].shift(1) - 1
+    avg_daily_return = df['Daily Return'].mean()
+    print(f"Average daily return: {avg_daily_return * 100:.4f}%")
+    
+    return avg_daily_return
 
 def compute_mu_and_cov(df, mean_method, cov_method, market_prices=None, risk_free_rate=0.0, ewm_span=None) -> tuple[np.ndarray | pd.Series]:
     """Compute expected returns (mu) and covariance matrix (S) based on chosen methods."""
@@ -23,9 +30,7 @@ def compute_mu_and_cov(df, mean_method, cov_method, market_prices=None, risk_fre
         else:
             mu = expected_returns.ema_historical_return(df)
     elif mean_method == "capm":
-        # if market_prices is None:
-        #     raise ValueError("CAPM requires market index prices (market_prices).")
-        mu = expected_returns.capm_return(df, market_prices=market_prices, risk_free_rate=risk_free_rate)
+        mu = expected_returns.capm_return(df, market_prices=calculate_expected_market_return(), risk_free_rate=risk_free_rate)
     else:
         raise ValueError(f"Unknown mean method: {mean_method}")
 
