@@ -201,8 +201,8 @@ def risk_opt():
             setattr(opt_container, attr_name, train_metrics)        
         graph_htmls = generate_frontier_graph(pfo, opt_for_risk=opt_container)  # frontier graphs
 
-        train_stats = format_weights_risk(train_metrics)
-        test_stats = format_weights_risk(test_metrics)
+        train_stats = format_weights_risk(train_metrics, risk_type=risk_type)
+        test_stats = format_weights_risk(test_metrics, risk_type=risk_type)
 
         stats = {"train": train_stats, "test": test_stats, "weights": {"Optimised return": opt.weights}}
 
