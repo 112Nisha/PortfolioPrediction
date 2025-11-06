@@ -25,14 +25,31 @@
 <div class="tab-content mt-3">
   <div class="tab-pane fade {% if (weights is defined) or ((riskvalue is not defined) and (returnval is not defined)) %}show active{% endif %}"
     id="form1" role="tabpanel" aria-labelledby="form1-tab">
+    
+    <p class="text-muted">
+      <strong>Mean-Variance Optimization:</strong> Construct a portfolio based on your own specified asset weights. Select stocks and weights for each stock, choose how to split data with number of train and test months, choose the required risk free rate and select the desired method for calculating risk and covariance from the dropdown for each of them.
+    </p>
+    
     {% include "forms/mean_variance.html" %}
   </div>
+  
   <div class="tab-pane fade {% if riskvalue is defined %}show active{% endif %}" id="form2" role="tabpanel"
     aria-labelledby="form2-tab">
+    
+    <p class="text-muted">
+      <strong>Risk-Based Optimization:</strong> Build a portfolio that minimizes a specific risk metric. Select stocks and enter your threshold for risk, choose how to split data with number of train and test months, choose the required risk free rate and select the desired method for calculating risk and covariance from the dropdown for each of them.
+    </p>
+
     {% include "forms/risk_opt.html" %}
   </div>
+
   <div class="tab-pane fade {% if returnval is defined %}show active{% endif %}" id="form3" role="tabpanel"
     aria-labelledby="form3-tab">
+    
+    <p class="text-muted">
+      <strong>Return-Based Optimization:</strong> Construct a portfolio designed to achieve a specific target return. Select stocks and enter your desired return, choose how to split data with number of train and test months, choose the required risk free rate and select the desired method for calculating risk and covariance from the dropdown for each of them.
+    </p>
+
     {% include "forms/return_opt.html" %}
   </div>
 </div>
