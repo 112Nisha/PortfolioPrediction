@@ -125,6 +125,7 @@ def backtest_plots_from_series(series_dict, title_suffix=None):
     }
 
     hover_tmpl = 'Date: %{x}<br>Cumulative: %{y:.4f}<extra></extra>'
+    dash_styles = ['solid', 'dot', 'dash', 'longdash', 'dashdot', 'longdashdot']
 
     mapping = [
         ("user", "User Portfolio"), 
@@ -140,10 +141,13 @@ def backtest_plots_from_series(series_dict, title_suffix=None):
         ("maxdd_return", "MaxDD-return-opt"),
     ]
 
+    i = 0
     for key, label in mapping:
         s = series_dict.get(key)
         if s is not None:
-            traces.append(go.Scatter(x=s.index, y=s.values, mode='lines+markers', name=label, line=dict(width=2, color=colors.get(key)), marker=dict(size=3), hovertemplate=hover_tmpl))
+            current_dash_style = dash_styles[i % len(dash_styles)]
+            traces.append(go.Scatter(x=s.index, y=s.values, mode='lines+markers', name=label, line=dict(width=2, color=colors.get(key), dash=current_dash_style), marker=dict(size=3), hovertemplate=hover_tmpl))
+            i += 1
 
     if not traces:
         traces.append(go.Scatter(x=[0, 1], y=[1, 1], mode='lines', name='No data'))
