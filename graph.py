@@ -28,11 +28,11 @@ def html_plot(stocks, points_list, risk_name, additional_points=None):
                 risks.append(pt[0])
                 returns.append(pt[1])
                 weights.append(pt[2])
-
+            label = "CML" if i == 1 else risk_name
             weights_list = [[w[s] for s in stocks] for w in weights]
             hovertemplate = get_hovertemplate(stocks)
             traces.append(go.Scatter(
-                x=risks, y=returns, mode='markers+lines', name=risk_name,
+                x=risks, y=returns, mode='markers+lines', name=label,
                 marker=dict(color=colors[i]), customdata=weights_list, hovertemplate=hovertemplate
             ))
     else:
