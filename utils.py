@@ -124,6 +124,16 @@ def extract_params(request, data_directory) -> IndexContext:
 
     return ctx
 
+def safe(pf, field, digits=2):
+    if pf is None:
+        return "N/A"
+    val = getattr(pf, field, None)
+    if val is None:
+        return "N/A"
+    try:
+        return round(float(val), digits)
+    except Exception:
+        return val
 
 def format_weights_mv(stats: Portfolio, opt_risk: OptimizationResultsContainer, opt_return: OptimizationResultsContainer):
     table = {
@@ -132,112 +142,112 @@ def format_weights_mv(stats: Portfolio, opt_risk: OptimizationResultsContainer, 
             {
                 "User Portfolio": {
                     "Weights": stats.weights,
-                    "Return": round(stats.return_, 2),
-                    "Variance": round(stats.variance, 2),
-                    "VaR": round(stats.var, 2),
-                    "CVaR": round(stats.cvar, 2),
-                    "Sharpe Ratio": round(stats.sharpe, 2),
-                    "Max Drawdown": round(stats.maxdd, 2),
+                    "Return": safe(stats, "return_"),
+                    "Variance": safe(stats, "variance"),
+                    "VaR": safe(stats, "var"),
+                    "CVaR": safe(stats, "cvar"),
+                    "Sharpe Ratio": safe(stats, "sharpe"),
+                    "Max Drawdown": safe(stats, "maxdd"),
                     "Description": "Your current portfolio"
                 },
                 "Variance-Optimized": {
                     "Weights": opt_return.variance.weights,
-                    "Return": f"<strong>{round(opt_return.variance.return_, 2)}</strong>",
-                    "Variance": f"<strong>{round(opt_return.variance.variance, 2)}</strong>",
-                    "VaR": round(opt_return.variance.var, 2),
-                    "CVaR": round(opt_return.variance.cvar, 2),
-                    "Sharpe Ratio": round(opt_return.variance.sharpe, 2),
-                    "Max Drawdown": round(opt_return.variance.maxdd, 2),
+                    "Return": f"<strong>{safe(opt_return.variance.return_, "return_")}</strong>",
+                    "Variance": f"<strong>{safe(opt_return.variance.variance, "variance")}</strong>",
+                    "VaR": safe(opt_return.variance.var, "var"),
+                    "CVaR": safe(opt_return.variance.cvar, "cvar"),
+                    "Sharpe Ratio": safe(opt_return.variance.sharpe, "sharpe"),
+                    "Max Drawdown": safe(opt_return.variance.maxdd, "maxdd"),
                     "Description": "Minimized variance for same return"
                 },
                 "VaR-Optimized": {
                     "Weights": opt_return.var.weights,
-                    "Return": f"<strong>{round(opt_return.var.return_, 2)}</strong>",
-                    "Variance": round(opt_return.var.variance, 2),
-                    "VaR": f"<strong>{round(opt_return.var.var, 2)}</strong>",
-                    "CVaR": round(opt_return.var.cvar, 2),
-                    "Sharpe Ratio": round(opt_return.var.sharpe, 2),
-                    "Max Drawdown": round(opt_return.var.maxdd, 2),
+                    "Return": f"<strong>{safe(opt_return.var.return_, "return_")}</strong>",
+                    "Variance": safe(opt_return.var.variance, "variance"),
+                    "VaR": f"<strong>{safe(opt_return.var.var, "var")}</strong>",
+                    "CVaR": safe(opt_return.var.cvar, "cvar"),
+                    "Sharpe Ratio": safe(opt_return.var.sharpe, "sharpe"),
+                    "Max Drawdown": safe(opt_return.var.maxdd, "maxdd"),
                     "Description": "Minimized VaR for same return"
                 },
                 "CVaR-Optimized": {
                     "Weights": opt_return.cvar.weights,
-                    "Return": f"<strong>{round(opt_return.cvar.return_, 2)}</strong>",
-                    "Variance": round(opt_return.cvar.variance, 2),
-                    "VaR": round(opt_return.cvar.var, 2),
-                    "CVaR": f"<strong>{round(opt_return.cvar.cvar, 2)}</strong>",
-                    "Sharpe Ratio": round(opt_return.cvar.sharpe, 2),
-                    "Max Drawdown": round(opt_return.cvar.maxdd, 2),
+                    "Return": f"<strong>{safe(opt_return.cvar.return_, "return_")}</strong>",
+                    "Variance": safe(opt_return.cvar.variance, "variance"),
+                    "VaR": safe(opt_return.cvar.var, "var"),
+                    "CVaR": f"<strong>{safe(opt_return.cvar.cvar, "cvar")}</strong>",
+                    "Sharpe Ratio": safe(opt_return.cvar.sharpe, "sharpe"),
+                    "Max Drawdown": safe(opt_return.cvar.maxdd, "maxdd"),
                     "Description": "Minimized CVaR for same return"
                 },
                 "Sharpe-Optimized": {
                     "Weights": opt_return.sharpe.weights,
-                    "Return": f"<strong>{round(opt_return.sharpe.return_, 2)}</strong>",
-                    "Variance": round(opt_return.sharpe.variance, 2),
-                    "VaR": round(opt_return.sharpe.var, 2),
-                    "CVaR": round(opt_return.sharpe.cvar, 2),
-                    "Sharpe Ratio": f"<strong>{round(opt_return.sharpe.sharpe, 2)}</strong>",
-                    "Max Drawdown": round(opt_return.sharpe.maxdd, 2),
+                    "Return": f"<strong>{safe(opt_return.sharpe.return_, "return_")}</strong>",
+                    "Variance": safe(opt_return.sharpe.variance, "variance"),
+                    "VaR": safe(opt_return.sharpe.var, "var"),
+                    "CVaR": safe(opt_return.sharpe.cvar, "cvar"),
+                    "Sharpe Ratio": f"<strong>{safe(opt_return.sharpe.sharpe, "sharpe")}</strong>",
+                    "Max Drawdown": safe(opt_return.sharpe.maxdd, "maxdd"),
                     "Description": "Maximized Sharpe ratio for same return"
                 },
                 "MaxDD-Optimized": {
                     "Weights": opt_return.maxdd.weights,
-                    "Return": f"<strong>{round(opt_return.maxdd.return_, 2)}</strong>",
-                    "Variance": round(opt_return.maxdd.variance, 2),
-                    "VaR": round(opt_return.maxdd.var, 2),
-                    "CVaR": round(opt_return.maxdd.cvar, 2),
-                    "Sharpe Ratio": round(opt_return.maxdd.sharpe, 2),
-                    "Max Drawdown": f"<strong>{round(opt_return.maxdd.maxdd, 2)}</strong>",
+                    "Return": f"<strong>{safe(opt_return.maxdd.return_, "return_")}</strong>",
+                    "Variance": safe(opt_return.maxdd.variance, "variance"),
+                    "VaR": safe(opt_return.maxdd.var, "var"),
+                    "CVaR": safe(opt_return.maxdd.cvar, "cvar"),
+                    "Sharpe Ratio": safe(opt_return.maxdd.sharpe, "sharpe"),
+                    "Max Drawdown": f"<strong>{safe(opt_return.maxdd.maxdd, "maxdd")}</strong>",
                     "Description": "Minimized max drawdown for same return"
                 },
                 "Max Return (Variance)": {
                     "Weights": opt_risk.variance.weights,
-                    "Return": f"<strong>{round(opt_risk.variance.return_, 2)}</strong>",
-                    "Variance": f"<strong>{round(opt_risk.variance.variance, 2)}</strong>",
-                    "VaR": round(opt_risk.variance.var, 2),
-                    "CVaR": round(opt_risk.variance.cvar, 2),
-                    "Sharpe Ratio": round(opt_risk.variance.sharpe, 2),
-                    "Max Drawdown": round(opt_risk.variance.maxdd, 2),
+                    "Return": f"<strong>{safe(opt_risk.variance.return_, "return_")}</strong>",
+                    "Variance": f"<strong>{safe(opt_risk.variance.variance, "variance")}</strong>",
+                    "VaR": safe(opt_risk.variance.var, "var"),
+                    "CVaR": safe(opt_risk.variance.cvar, "cvar"),
+                    "Sharpe Ratio": safe(opt_risk.variance.sharpe, "sharpe"),
+                    "Max Drawdown": safe(opt_risk.variance.maxdd, "maxdd"),
                     "Description": "Max return for user portfolio's variance level"
                 },
                 "Max Return (VaR)": {
                     "Weights": opt_risk.var.weights,
-                    "Return": f"<strong>{round(opt_risk.var.return_, 2)}</strong>",
-                    "Variance": round(opt_risk.var.variance, 2),
-                    "VaR": f"<strong>{round(opt_risk.var.var, 2)}</strong>",
-                    "CVaR": round(opt_risk.var.cvar, 2),
-                    "Sharpe Ratio": round(opt_risk.var.sharpe, 2),
-                    "Max Drawdown": round(opt_risk.var.maxdd, 2),
+                    "Return": f"<strong>{safe(opt_risk.var.return_, "return_")}</strong>",
+                    "Variance": safe(opt_risk.var.variance, "variance"),
+                    "VaR": f"<strong>{safe(opt_risk.var.var, "var")}</strong>",
+                    "CVaR": safe(opt_risk.var.cvar, "cvar"),
+                    "Sharpe Ratio": safe(opt_risk.var.sharpe, "sharpe"),
+                    "Max Drawdown": safe(opt_risk.var.maxdd, "maxdd"),
                     "Description": "Max return for user portfolio's VaR level"
                 },
                 "Max Return (CVaR)": {
                     "Weights": opt_risk.cvar.weights,
-                    "Return": f"<strong>{round(opt_risk.cvar.return_, 2)}</strong>",
-                    "Variance": round(opt_risk.cvar.variance, 2),
-                    "VaR": round(opt_risk.cvar.var, 2),
-                    "CVaR": f"<strong>{round(opt_risk.cvar.cvar, 2)}</strong>",
-                    "Sharpe Ratio": round(opt_risk.cvar.sharpe, 2),
-                    "Max Drawdown": round(opt_risk.cvar.maxdd, 2),
+                    "Return": f"<strong>{safe(opt_risk.cvar.return_, "return_")}</strong>",
+                    "Variance": safe(opt_risk.cvar.variance, "variance"),
+                    "VaR": safe(opt_risk.cvar.var, "var"),
+                    "CVaR": f"<strong>{safe(opt_risk.cvar.cvar, "cvar")}</strong>",
+                    "Sharpe Ratio": safe(opt_risk.cvar.sharpe, "sharpe"),
+                    "Max Drawdown": safe(opt_risk.cvar.maxdd, "maxdd"),
                     "Description": "Max return for user portfolio's CVaR level"
                 },
                 "Max Return (Sharpe)": {
                     "Weights": opt_risk.sharpe.weights,
-                    "Return": f"<strong>{round(opt_risk.sharpe.return_, 2)}</strong>",
-                    "Variance": round(opt_risk.sharpe.variance, 2),
-                    "VaR": round(opt_risk.sharpe.var, 2),
-                    "CVaR": round(opt_risk.sharpe.cvar, 2),
-                    "Sharpe Ratio": f"<strong>{round(opt_risk.sharpe.sharpe, 2)}</strong>",
-                    "Max Drawdown": round(opt_risk.sharpe.maxdd, 2),
+                    "Return": f"<strong>{safe(opt_risk.sharpe.return_, "return_")}</strong>",
+                    "Variance": safe(opt_risk.sharpe.variance, "variance"),
+                    "VaR": safe(opt_risk.sharpe.var, "var"),
+                    "CVaR": safe(opt_risk.sharpe.cvar, "cvar"),
+                    "Sharpe Ratio": f"<strong>{safe(opt_risk.sharpe.sharpe, "sharpe")}</strong>",
+                    "Max Drawdown": safe(opt_risk.sharpe.maxdd, "maxdd"),
                     "Description": "Max return for user portfolio's Sharpe ratio level"
                 },
                 "Max Return (MaxDD)": {
                     "Weights": opt_risk.maxdd.weights,
-                    "Return": f"<strong>{round(opt_risk.maxdd.return_, 2)}</strong>",
-                    "Variance": round(opt_risk.maxdd.variance, 2),
-                    "VaR": round(opt_risk.maxdd.var, 2),
-                    "CVaR": round(opt_risk.maxdd.cvar, 2),
-                    "Sharpe Ratio": round(opt_risk.maxdd.sharpe, 2),
-                    "Max Drawdown": f"<strong>{round(opt_risk.maxdd.maxdd, 2)}</strong>",
+                    "Return": f"<strong>{safe(opt_risk.maxdd.return_, "return_")}</strong>",
+                    "Variance": safe(opt_risk.maxdd.variance, "variance"),
+                    "VaR": safe(opt_risk.maxdd.var, "var"),
+                    "CVaR": safe(opt_risk.maxdd.cvar, "cvar"),
+                    "Sharpe Ratio": safe(opt_risk.maxdd.sharpe, "sharpe"),
+                    "Max Drawdown": f"<strong>{safe(opt_risk.maxdd.maxdd, "maxdd")}</strong>",
                     "Description": "Max return for user portfolio's max drawdown level"
                 }
             }
@@ -246,17 +256,6 @@ def format_weights_mv(stats: Portfolio, opt_risk: OptimizationResultsContainer, 
     return table
 
 def format_weights_risk(opt_risk, risk_type: str = "variance"):
-    def safe(pf, field, digits=2):
-        if pf is None:
-            return "N/A"
-        val = getattr(pf, field, None)
-        if val is None:
-            return "N/A"
-        try:
-            return round(float(val), digits)
-        except Exception:
-            return val
-
     # Mapping helpers to extract portfolios from a container (or fallback to single Portfolio)
     if isinstance(opt_risk, OptimizationResultsContainer):
         p_variance = opt_risk.variance

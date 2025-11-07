@@ -11,12 +11,10 @@ import backtrader as bt
 from typing import List
 
 def prepare_market_returns(csv_file='nifty50_data.csv'):
-    df = pd.read_csv(csv_file, parse_dates=['Date'], index_col='Date')
-    if 'Adj Close' not in df.columns:
-        raise ValueError("CSV must contain 'Adj Close' column.")
-    df['Market Daily Return'] = df['Adj Close'] / df['Adj Close'].shift(1) - 1
-    df = df.dropna(subset=['Market Daily Return'])
-    return df['Market Daily Return']
+    market_df = pd.read_csv(csv_file, parse_dates=True, index_col=0)
+    if market_df.shape[1] > 1:
+        market_df = market_df[['Close']]  
+    return market_df
 
 def compute_mu_and_cov(df, mean_method, cov_method, market_prices=None, risk_free_rate=0.0, ewm_span=None) -> tuple[np.ndarray | pd.Series]:
     """Compute expected returns (mu) and covariance matrix (S) based on chosen methods."""
@@ -33,6 +31,7 @@ def compute_mu_and_cov(df, mean_method, cov_method, market_prices=None, risk_fre
         # if market_prices is None:
         #     raise ValueError("CAPM requires market index prices (market_prices).")
         mu = expected_returns.capm_return(df, market_prices=None, risk_free_rate=risk_free_rate)
+        print("\033[38;5;206m" + str(mu) + "\033[0m")
     else:
         raise ValueError(f"Unknown mean method: {mean_method}")
 
