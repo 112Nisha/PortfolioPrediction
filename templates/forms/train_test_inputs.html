@@ -36,14 +36,14 @@
 
     <label class="ms-2">Covariance estimation:
         <select class="cov-method form-control d-inline-block" name="cov_method" style="width:300px;">
-            <option value="fix_psd" {% if cov_method=='fix_psd' %}selected{% endif %}>
-                Fix non-positive semidefinite matrices
-            </option>
             <option value="sample" {% if cov_method=='sample' %}selected{% endif %}>
                 Sample covariance
             </option>
             <option value="semicovariance" {% if cov_method=='semicovariance' %}selected{% endif %}>
                 Semicovariance
+            </option>
+            <option value="fix_psd" {% if cov_method=='fix_psd' %}selected{% endif %}>
+                Fix non-positive semidefinite matrices
             </option>
             <option value="ewm" {% if cov_method=='ewm' %}selected{% endif %}>
                 Exponentially weighted covariance

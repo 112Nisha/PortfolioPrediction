@@ -18,44 +18,157 @@
 
     <section class="mb-5">
         <h2 class="h3">2. Return Estimation Methods</h2>
-        <p>Accurately estimating future returns is crucial. Our platform offers several methodologies:</p>
-        <ul>
-            <li><strong>Mean Historical Return:</strong> This is the simplest method, calculating the arithmetic average of past returns over the specified period. It assumes that future returns will resemble past averages.</li>
-            <li><strong>Exponentially Weighted Mean Historical Return (EWM):</strong> This method gives more weight to recent observations, making the estimate more responsive to recent market trends. It uses an exponential decay factor (span) to determine the influence of past data.</li>
-            <li><strong>CAPM Estimate of Returns (Capital Asset Pricing Model):</strong> CAPM estimates the expected return of an asset based on its sensitivity to market risk (beta), the expected market return, and the risk-free rate. It's a theoretical model that relates systematic risk to expected return.</li>
-        </ul>
+        <p>These methods estimate the expected future returns for assets.</p>
+
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Formula</th>
+                    <th>Variable Meaning</th>
+                    <th>Significance</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Mean Historical Return</td>
+                    <td>$$ \bar{R} = \frac{1}{N} \sum_{i=1}^{N} R_i $$</td>
+                    <td>
+                        \( R_i \): return in period i<br>
+                        \( N \): total periods
+                    </td>
+                    <td>Simple average of past returns; assumes future returns mirror past performance.</td>
+                </tr>
+                <tr>
+                    <td>Exponentially Weighted Mean (EWM)</td>
+                    <td>$$ \bar{R}_{EWM} = \sum_{i=1}^{N} w_i R_i, \quad w_i = (1-\lambda)\lambda^{N-i} $$</td>
+                    <td>
+                        \( \lambda \): decay factor (0&lt;λ&lt;1)<br>
+                        \( R_i \): historical returns
+                    </td>
+                    <td>Gives higher weight to recent data, adapting to current market trends.</td>
+                </tr>
+                <tr>
+                    <td>CAPM Expected Return</td>
+                    <td>$$ E[R_i] = R_f + \beta_i (E[R_m] - R_f) $$</td>
+                    <td>
+                        \( R_f \): risk-free rate<br>
+                        \( \beta_i \): asset’s market sensitivity<br>
+                        \( E[R_m] \): expected market return
+                    </td>
+                    <td>Theoretical model linking systematic risk and expected return.</td>
+                </tr>
+            </tbody>
+        </table>
     </section>
 
     <section class="mb-5">
         <h2 class="h3">3. Covariance Estimation Methods</h2>
-        <p>The covariance matrix measures how the returns of different assets move together. Accurate covariance estimation is vital for understanding diversification benefits and portfolio risk.</p>
-        <ul>
-            <li><strong>Sample Covariance:</strong> The most straightforward method, calculating covariance directly from historical data. It can be noisy, especially with limited data.</li>
-            <li><strong>Fix Non-Positive Semidefinite Matrices (`fix_psd`):</strong> Numerical issues can sometimes lead to covariance matrices that are not positive semidefinite, which is mathematically problematic for optimization. This method adjusts such matrices to make them valid.</li>
-            <li><strong>Semicovariance:</strong> Focuses only on negative deviations from the mean (downside risk), which can be a more intuitive measure of risk for some investors than overall volatility.</li>
-            <li><strong>Exponentially Weighted Covariance (EWM):</strong> Similar to EWM for returns, this method assigns greater weight to recent data when calculating covariance, making it more adaptive to changing correlations.</li>
-            <li><strong>Minimum Covariance Determinant (MCD):</strong> A robust statistical method that identifies a subset of observations whose empirical covariance matrix has the minimum determinant. It's less sensitive to outliers.</li>
-            <li><strong>Shrunk Covariance Matrices:</strong> These methods combine the sample covariance matrix with a more stable target matrix, effectively "shrinking" the extreme values in the sample. This helps to reduce estimation error, especially with a large number of assets or limited data.
-                <ul>
-                    <li><strong>Manual Shrinkage:</strong> Allows for a fixed shrinkage intensity (e.g., 0.1) to blend the sample covariance with a target.</li>
-                    <li><strong>Ledoit-Wolf Shrinkage:</strong> Automatically determines the optimal shrinkage intensity based on mathematical theory.</li>
-                    <li><strong>Oracle-Approximating Shrinkage (OAS):</strong> Another method for automatically determining the shrinkage intensity, often performing well when data is scarce.</li>
-                </ul>
-            </li>
-            <li><strong>Covariance to Correlation Matrix (`cov_to_corr`):</strong> Transforms the covariance matrix into a correlation matrix. While not a direct covariance estimate, it can be useful for certain analyses or as an intermediate step in some models.</li>
-        </ul>
+        <p>Covariance indicates how two assets move relative to each other, impacting diversification and overall portfolio risk.</p>
+
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Formula</th>
+                    <th>Variable Meaning</th>
+                    <th>Significance</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Sample Covariance</td>
+                    <td>$$ \text{Cov}(X,Y) = \frac{1}{N-1} \sum_{i=1}^{N} (X_i - \bar{X})(Y_i - \bar{Y}) $$</td>
+                    <td>
+                        \( X_i, Y_i \): asset returns<br>
+                        \( \bar{X}, \bar{Y} \): mean returns
+                    </td>
+                    <td>Direct estimate of co-movement from historical data; noisy for small datasets.</td>
+                </tr>
+                <tr>
+                    <td>Exponentially Weighted Covariance</td>
+                    <td>$$ \text{Cov}_{EWM} = \sum_{i} w_i (X_i - \bar{X})(Y_i - \bar{Y}) $$</td>
+                    <td>
+                        \( w_i \): exponentially decaying weights<br>
+                        \( \bar{X}, \bar{Y} \): weighted means
+                    </td>
+                    <td>Adapts to changing market conditions by emphasizing recent data.</td>
+                </tr>
+                <tr>
+                    <td>Shrunk Covariance (Ledoit-Wolf)</td>
+                    <td>$$ \Sigma_{shrunk} = (1 - \alpha)\Sigma_{sample} + \alpha T $$</td>
+                    <td>
+                        \( \Sigma_{sample} \): sample covariance<br>
+                        \( T \): target (e.g., identity matrix)<br>
+                        \( \alpha \): shrinkage intensity
+                    </td>
+                    <td>Stabilizes estimates, reducing overfitting for high-dimensional portfolios.</td>
+                </tr>
+                <tr>
+                    <td>Semicovariance</td>
+                    <td>$$ \text{SemiCov} = \frac{1}{N} \sum_{i=1}^{N} \min(0, R_i - \bar{R})^2 $$</td>
+                    <td>
+                        \( R_i \): individual returns<br>
+                        \( \bar{R} \): mean return
+                    </td>
+                    <td>Focuses on downside movements—useful for investors sensitive to losses.</td>
+                </tr>
+                <tr>
+                    <td>Minimum Covariance Determinant (MCD)</td>
+                    <td>—</td>
+                    <td>—</td>
+                    <td>Robust to outliers; identifies subset with minimal determinant covariance.</td>
+                </tr>
+            </tbody>
+        </table>
     </section>
 
     <section class="mb-5">
         <h2 class="h3">4. Risk Metrics</h2>
-        <p>Beyond traditional variance, our platform allows optimization based on several key risk measures:</p>
-        <ul>
-            <li><strong>Variance:</strong> The squared standard deviation, a classical measure of total risk (volatility).</li>
-            <li><strong>VaR (Value at Risk):</strong> An estimate of the maximum potential loss over a specified time horizon at a given confidence level (e.g., 5% VaR means there's a 5% chance of losing at least this amount).</li>
-            <li><strong>CVaR (Conditional Value at Risk) / Expected Shortfall:</strong> The expected loss given that the loss exceeds the VaR. It's often considered a more robust measure of "tail risk" than VaR, as it considers the magnitude of extreme losses.</li>
-            <li><strong>Sharpe Ratio:</strong> Measures the risk-adjusted return of an investment. It is the average return earned in excess of the risk-free rate per unit of total risk (standard deviation). A higher Sharpe ratio indicates a better risk-adjusted return.</li>
-            <li><strong>Max Drawdown:</strong> The maximum observed loss from a peak to a trough of a portfolio, before a new peak is attained. It's an indicator of the downside risk of an investment over a specified time period.</li>
-        </ul>
+        <p>Risk metrics assess the volatility, tail-risk, and drawdown potential of a portfolio.</p>
+
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Formula</th>
+                    <th>Variable Meaning</th>
+                    <th>Significance</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Variance</td>
+                    <td>$$ \sigma^2 = \frac{1}{N-1} \sum_{i=1}^{N} (R_i - \bar{R})^2 $$</td>
+                    <td>\( R_i \): returns, \( \bar{R} \): mean return</td>
+                    <td>Classical measure of total risk (volatility).</td>
+                </tr>
+                <tr>
+                    <td>Value at Risk (VaR)</td>
+                    <td>$$ \text{VaR}_\alpha = -F_R^{-1}(\alpha) $$</td>
+                    <td>\( F_R^{-1} \): inverse CDF of returns, \( \alpha \): confidence level</td>
+                    <td>Maximum expected loss over a time period at confidence level α.</td>
+                </tr>
+                <tr>
+                    <td>Conditional VaR (CVaR)</td>
+                    <td>$$ \text{CVaR}_\alpha = E[R \mid R \leq \text{VaR}_\alpha] $$</td>
+                    <td>\( R \): returns, \( \alpha \): confidence level</td>
+                    <td>Expected loss beyond VaR; better captures extreme downside risk.</td>
+                </tr>
+                <tr>
+                    <td>Sharpe Ratio</td>
+                    <td>$$ S = \frac{E[R_p - R_f]}{\sigma_p} $$</td>
+                    <td>\( R_p \): portfolio return, \( R_f \): risk-free rate, \( \sigma_p \): portfolio volatility</td>
+                    <td>Measures risk-adjusted performance; higher is better.</td>
+                </tr>
+                <tr>
+                    <td>Max Drawdown</td>
+                    <td>$$ \text{MDD} = \max_{t}( \frac{P_{peak} - P_t}{P_{peak}} ) $$</td>
+                    <td>\( P_t \): portfolio value at time t, \( P_{peak} \): max historical value</td>
+                    <td>Shows largest drop from a peak to a trough—key for downside assessment.</td>
+                </tr>
+            </tbody>
+        </table>
     </section>
 
     <section class="mb-5">
@@ -164,4 +277,14 @@
 
     <p class="mt-5 text-muted text-center">This information helps explain the methodologies and tools behind the PortfolioPrediction application.</p>
 </div>
+
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] },
+  svg: { fontCache: 'global' }
+};
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+
 {% endblock %}

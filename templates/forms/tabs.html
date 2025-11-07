@@ -27,7 +27,7 @@
     id="form1" role="tabpanel" aria-labelledby="form1-tab">
     
     <p class="text-muted">
-      <strong>Mean-Variance Optimization:</strong> Construct a portfolio based on your own specified asset weights. Select stocks and weights for each stock, choose how to split data with number of train and test months, choose the required risk free rate and select the desired method for calculating risk and covariance from the dropdown for each of them.
+      <strong>Mean-Variance Optimization:</strong> Based on your selection of stocks and weights, we calculate optimized portfolios with either the same risk (variance, sharpe, cvar, etc) or the same risk.
     </p>
     
     {% include "forms/mean_variance.html" %}
@@ -37,7 +37,7 @@
     aria-labelledby="form2-tab">
     
     <p class="text-muted">
-      <strong>Risk-Based Optimization:</strong> Build a portfolio that minimizes a specific risk metric. Select stocks and enter your threshold for risk, choose how to split data with number of train and test months, choose the required risk free rate and select the desired method for calculating risk and covariance from the dropdown for each of them.
+      <strong>Risk-Based Optimization:</strong> Based on your selection of stocks, risk metric and risk value, we calculate optimized portfolios with same risk and maximize return.
     </p>
 
     {% include "forms/risk_opt.html" %}
@@ -47,7 +47,7 @@
     aria-labelledby="form3-tab">
     
     <p class="text-muted">
-      <strong>Return-Based Optimization:</strong> Construct a portfolio designed to achieve a specific target return. Select stocks and enter your desired return, choose how to split data with number of train and test months, choose the required risk free rate and select the desired method for calculating risk and covariance from the dropdown for each of them.
+      <strong>Return-Based Optimization:</strong> Based on your selection of stocks, and a target portfolio return, we calculate optimized portfolios the specified return and minimized risks.
     </p>
 
     {% include "forms/return_opt.html" %}
