@@ -95,16 +95,6 @@
                     <td>Adapts to changing market conditions by emphasizing recent data.</td>
                 </tr>
                 <tr>
-                    <td>Shrunk Covariance (Ledoit-Wolf)</td>
-                    <td>$$ \Sigma_{shrunk} = (1 - \alpha)\Sigma_{sample} + \alpha T $$</td>
-                    <td>
-                        \( \Sigma_{sample} \): sample covariance<br>
-                        \( T \): target (e.g., identity matrix)<br>
-                        \( \alpha \): shrinkage intensity
-                    </td>
-                    <td>Stabilizes estimates, reducing overfitting for high-dimensional portfolios.</td>
-                </tr>
-                <tr>
                     <td>Semicovariance</td>
                     <td>$$ \text{SemiCov} = \frac{1}{N} \sum_{i=1}^{N} \min(0, R_i - \bar{R})^2 $$</td>
                     <td>
@@ -112,12 +102,6 @@
                         \( \bar{R} \): mean return
                     </td>
                     <td>Focuses on downside movements—useful for investors sensitive to losses.</td>
-                </tr>
-                <tr>
-                    <td>Minimum Covariance Determinant (MCD)</td>
-                    <td>—</td>
-                    <td>—</td>
-                    <td>Robust to outliers; identifies subset with minimal determinant covariance.</td>
                 </tr>
             </tbody>
         </table>
