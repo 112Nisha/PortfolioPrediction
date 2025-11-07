@@ -1,26 +1,48 @@
 {%- macro render_stats_table(stats) -%}
     <p><strong>Expected/Average Annual Return (%):</strong> {{ stats.return }}</p>
 
+    <script>
+        function toggleInfo(id) {
+            var infoElement = document.getElementById('info-' + id);
+            if (infoElement.style.display === 'none' || infoElement.style.display === '') {
+                infoElement.style.display = 'block';
+            } else {
+                infoElement.style.display = 'none';
+            }
+        }
+    </script>
+
     {%- for table in stats.tables %}
         {% if table %}
             {# Get column headers dynamically from first row #}
             {% set first_item = table.values() | list | first %}
-            {% set columns = first_item.keys() %}
+            {% set columns = first_item.keys() | list %}
+            {% set last_column_name = columns[-1] %}
             
             <table class="table table-bordered mb-4">
                 <thead>
                     <tr>
                         <th>Portfolio</th>
-                        {%- for col in columns %}
+                        {# Loop through columns, excluding the last one #}
+                        {%- for col in columns[:-1] %}
                             <th>{{ col }}</th>
                         {%- endfor %}
                     </tr>
                 </thead>
                 <tbody>
                     {%- for portfolio_name, values in table.items() %}
+                        {% set unique_id = loop.index %}
                         <tr>
-                            <td>{{ portfolio_name }}</td>
-                            {%- for col in columns %}
+                            <td>
+                                {{ portfolio_name }}
+                                <button style="border-radius: 50%; width: 20px; height: 20px; text-align: center; padding: 0; font-size: 0.8em; margin-left: 5px;" onclick="toggleInfo('{{ loop.index }}')">i</button>
+                                <div id="info-{{ loop.index }}" style="display: none; margin-top: 10px; padding: 5px; border: 1px solid #ddd;">
+                                    <strong>{{ last_column_name }}:</strong><br>
+                                    {{ values[last_column_name] | safe }}
+                                </div>
+                            </td>
+                            {# Loop through column values, excluding the last one #}
+                            {%- for col in columns[:-1] %}
                                 <td>
                                     {% if col == "Weights" %}
                                         <pre style="margin: 0; font-size: 0.85em;">{{ values[col] }}</pre>

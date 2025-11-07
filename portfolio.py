@@ -31,7 +31,6 @@ def compute_mu_and_cov(df, mean_method, cov_method, market_prices=None, risk_fre
         # if market_prices is None:
         #     raise ValueError("CAPM requires market index prices (market_prices).")
         mu = expected_returns.capm_return(df, market_prices=None, risk_free_rate=risk_free_rate)
-        print("\033[38;5;206m" + str(mu) + "\033[0m")
     else:
         raise ValueError(f"Unknown mean method: {mean_method}")
 
