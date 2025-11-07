@@ -134,6 +134,10 @@ def safe(pf, field, digits=2):
         return round(float(val), digits)
     except Exception:
         return val
+    
+def round_weights(weights):
+    rounded_data = {key: round(value, 2) for key, value in weights.items()}
+    return rounded_data
 
 def format_weights_mv(stats: Portfolio, opt_risk: OptimizationResultsContainer, opt_return: OptimizationResultsContainer):
     table = {
@@ -141,7 +145,7 @@ def format_weights_mv(stats: Portfolio, opt_risk: OptimizationResultsContainer, 
         "tables": [
             {
                 "User Portfolio": {
-                    "Weights": stats.weights,
+                    "Weights": round_weights(stats.weights),
                     "Return": safe(stats, "return_"),
                     "Variance": safe(stats, "variance"),
                     "VaR": safe(stats, "var"),
@@ -151,7 +155,7 @@ def format_weights_mv(stats: Portfolio, opt_risk: OptimizationResultsContainer, 
                     "Description": "Your current portfolio"
                 },
                 "Variance-Optimized": {
-                    "Weights": opt_return.variance.weights,
+                    "Weights": round_weights(opt_return.variance.weights),
                     "Return": f"<strong>{safe(opt_return.variance, "return_")}</strong>",
                     "Variance": f"<strong>{safe(opt_return.variance, "variance")}</strong>",
                     "VaR": safe(opt_return.variance, "var"),
@@ -161,7 +165,7 @@ def format_weights_mv(stats: Portfolio, opt_risk: OptimizationResultsContainer, 
                     "Description": "Minimized variance for same return"
                 },
                 "VaR-Optimized": {
-                    "Weights": opt_return.var.weights,
+                    "Weights": round_weights(opt_return.var.weights),
                     "Return": f"<strong>{safe(opt_return.var, "return_")}</strong>",
                     "Variance": safe(opt_return.var, "variance"),
                     "VaR": f"<strong>{safe(opt_return.var, "var")}</strong>",
@@ -171,7 +175,7 @@ def format_weights_mv(stats: Portfolio, opt_risk: OptimizationResultsContainer, 
                     "Description": "Minimized VaR for same return"
                 },
                 "CVaR-Optimized": {
-                    "Weights": opt_return.cvar.weights,
+                    "Weights": round_weights(opt_return.cvar.weights),
                     "Return": f"<strong>{safe(opt_return.cvar, "return_")}</strong>",
                     "Variance": safe(opt_return.cvar, "variance"),
                     "VaR": safe(opt_return.cvar, "var"),
@@ -181,7 +185,7 @@ def format_weights_mv(stats: Portfolio, opt_risk: OptimizationResultsContainer, 
                     "Description": "Minimized CVaR for same return"
                 },
                 "Sharpe-Optimized": {
-                    "Weights": opt_return.sharpe.weights,
+                    "Weights": round_weights(opt_return.sharpe.weights),
                     "Return": f"<strong>{safe(opt_return.sharpe, "return_")}</strong>",
                     "Variance": safe(opt_return.sharpe, "variance"),
                     "VaR": safe(opt_return.sharpe, "var"),
@@ -191,7 +195,7 @@ def format_weights_mv(stats: Portfolio, opt_risk: OptimizationResultsContainer, 
                     "Description": "Maximized Sharpe ratio for same return"
                 },
                 "MaxDD-Optimized": {
-                    "Weights": opt_return.maxdd.weights,
+                    "Weights": round_weights(opt_return.maxdd.weights),
                     "Return": f"<strong>{safe(opt_return.maxdd, "return_")}</strong>",
                     "Variance": safe(opt_return.maxdd, "variance"),
                     "VaR": safe(opt_return.maxdd, "var"),
@@ -201,7 +205,7 @@ def format_weights_mv(stats: Portfolio, opt_risk: OptimizationResultsContainer, 
                     "Description": "Minimized max drawdown for same return"
                 },
                 "Max Return (Variance)": {
-                    "Weights": opt_risk.variance.weights,
+                    "Weights": round_weights(opt_risk.variance.weights),
                     "Return": f"<strong>{safe(opt_risk.variance, "return_")}</strong>",
                     "Variance": f"<strong>{safe(opt_risk.variance, "variance")}</strong>",
                     "VaR": safe(opt_risk.variance, "var"),
@@ -211,7 +215,7 @@ def format_weights_mv(stats: Portfolio, opt_risk: OptimizationResultsContainer, 
                     "Description": "Max return for user portfolio's variance level"
                 },
                 "Max Return (VaR)": {
-                    "Weights": opt_risk.var.weights,
+                    "Weights": round_weights(opt_risk.var.weights),
                     "Return": f"<strong>{safe(opt_risk.var, "return_")}</strong>",
                     "Variance": safe(opt_risk.var, "variance"),
                     "VaR": f"<strong>{safe(opt_risk.var, "var")}</strong>",
@@ -221,7 +225,7 @@ def format_weights_mv(stats: Portfolio, opt_risk: OptimizationResultsContainer, 
                     "Description": "Max return for user portfolio's VaR level"
                 },
                 "Max Return (CVaR)": {
-                    "Weights": opt_risk.cvar.weights,
+                    "Weights": round_weights(opt_risk.cvar.weights),
                     "Return": f"<strong>{safe(opt_risk.cvar, "return_")}</strong>",
                     "Variance": safe(opt_risk.cvar, "variance"),
                     "VaR": safe(opt_risk.cvar, "var"),
@@ -231,7 +235,7 @@ def format_weights_mv(stats: Portfolio, opt_risk: OptimizationResultsContainer, 
                     "Description": "Max return for user portfolio's CVaR level"
                 },
                 "Max Return (Sharpe)": {
-                    "Weights": opt_risk.sharpe.weights,
+                    "Weights": round_weights(opt_risk.sharpe.weights),
                     "Return": f"<strong>{safe(opt_risk.sharpe, "return_")}</strong>",
                     "Variance": safe(opt_risk.sharpe, "variance"),
                     "VaR": safe(opt_risk.sharpe, "var"),
@@ -241,7 +245,7 @@ def format_weights_mv(stats: Portfolio, opt_risk: OptimizationResultsContainer, 
                     "Description": "Max return for user portfolio's Sharpe ratio level"
                 },
                 "Max Return (MaxDD)": {
-                    "Weights": opt_risk.maxdd.weights,
+                    "Weights": round_weights(opt_risk.maxdd.weights),
                     "Return": f"<strong>{safe(opt_risk.maxdd, "return_")}</strong>",
                     "Variance": safe(opt_risk.maxdd, "variance"),
                     "VaR": safe(opt_risk.maxdd, "var"),
@@ -279,7 +283,7 @@ def format_weights_risk(opt_risk, risk_type: str = "variance"):
         "tables": [
             {
                 "Portfolio": {
-                    "Weights": user_pf.weights or {},
+                    "Weights": round_weights(user_pf.weights) or {},
                     "Return": safe(user_pf, "return_") if risk_type != "return" else f"<strong>{safe(user_pf, "return_")}</strong>",
                     "Variance": safe(user_pf, "variance") if risk_type != "variance" else f"<strong>{safe(user_pf, "variance")}</strong>",
                     "VaR": safe(user_pf, "var") if risk_type != "var" else f"<strong>{safe(user_pf, "var")}</strong>",
