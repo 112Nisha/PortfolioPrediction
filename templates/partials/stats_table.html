@@ -1,6 +1,7 @@
 {%- macro render_stats_table(stats) -%}
-    <p><strong>Expected/Average Annual Return (%):</strong> {{ stats.return }}</p>
-
+    {% if stats.return is not none %}
+        <p><strong>Expected/Average Annual Return (%):</strong> {{ stats.return }}</p>
+    {% endif %}
     <script>
         function toggleInfo(id) {
             var infoElement = document.getElementById('info-' + id);
