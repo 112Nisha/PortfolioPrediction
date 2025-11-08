@@ -136,6 +136,8 @@ def safe(pf, field, digits=2):
         return val
     
 def round_weights(weights):
+    if weights is None:
+        return {}
     rounded_data = {key: round(value, 2) for key, value in weights.items()}
     return rounded_data
 

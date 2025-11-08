@@ -6,7 +6,7 @@
 
     <section class="mb-5">
         <h2 class="h3">1. Core Concepts in Portfolio Optimization</h2>
-        <p>Portfolio optimization is a sophisticated mathematical approach to constructing an investment portfolio by carefully selecting the proportion of various assets. The primary goal is to achieve the best possible balance between maximizing expected returns and minimizing investment risk, often based on historical data.</p>
+        <p>Portfolio optimization is a mathematical approach to constructing an investment portfolio by selecting the proportion of various assets. The primary goal is to achieve the best possible balance between maximizing expected returns and minimizing investment risk, often based on historical data.</p>
 
         <h3 class="h4">Key Metrics:</h3>
         <ul>
@@ -56,7 +56,7 @@
                         \( \beta_i \): asset’s market sensitivity<br>
                         \( E[R_m] \): expected market return
                     </td>
-                    <td>Theoretical model linking systematic risk and expected return.</td>
+                    <td>Theoretical model explicitly linking systematic risk and expected return.</td>
                 </tr>
             </tbody>
         </table>
@@ -156,75 +156,16 @@
     </section>
 
     <section class="mb-5">
-        <h2 class="h3">4.1 Choosing Risk Metrics, Mean Methods, and Covariance Estimators</h2>
-        <p>This section provides guidance on which combinations work best in different scenarios, based on empirical experiments run on a diversified dataset of Indian equities.</p>
-
-        <h3 class="h5 mt-3">Recommended Combinations (Summary)</h3>
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>Scenario</th>
-                    <th>Mean Method</th>
-                    <th>Covariance Estimator</th>
-                    <th>Risk Metric</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>Stable long-term portfolios</td>
-                    <td>CAPM</td>
-                    <td>Ledoit-Wolf</td>
-                    <td>Sharpe</td>
-                </tr>
-                <tr>
-                    <td>Downside-risk focus</td>
-                    <td>Mean Historical</td>
-                    <td>Semicovariance</td>
-                    <td>CVaR</td>
-                </tr>
-                <tr>
-                    <td>High-dimensional portfolios</td>
-                    <td>CAPM</td>
-                    <td>Ledoit-Wolf</td>
-                    <td>Variance / Sharpe</td>
-                </tr>
-                <tr>
-                    <td>Highly volatile markets</td>
-                    <td>EWM Mean</td>
-                    <td>EWM Covariance</td>
-                    <td>CVaR</td>
-                </tr>
-                <tr>
-                    <td>Short lookback / noisy data</td>
-                    <td>EWM Mean</td>
-                    <td>Sample Covariance</td>
-                    <td>Variance</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <h3 class="h5 mt-4">Key Findings</h3>
-        <ul>
-            <li><strong>CAPM</strong> consistently produced the highest Sharpe ratios for diversified portfolios with long historical data.</li>
-            <li><strong>Ledoit-Wolf</strong> gave the most stable covariance estimates, especially with many stocks.</li>
-            <li><strong>Semicovariance</strong> improved downside-risk performance and tail-risk sensitivity.</li>
-            <li><strong>EWM-based methods</strong> adapt better during volatile or regime-shifting periods.</li>
-            <li>Variance and Sharpe remain stable across lookback windows, while CVaR and Max Drawdown react more strongly to data changes.</li>
-            <li>Longer lookback windows (60 months) slightly improved Sharpe ratios, but weights remained highly stable across all windows.</li>
-        </ul>
-    </section>
-
-    <section class="mb-5">
         <h2 class="h3">5. Optimization Goals</h2>
         <p>Our application supports two main approaches to portfolio optimization:</p>
         <ul>
             <li><strong>Mean-Variance Optimization:</strong>
-                <p>This traditional approach, using <code>/mean_variance</code> endpoint, allows you to input your desired portfolio (stocks and weights). The system then calculates various metrics for your portfolio (Variance, VaR, CVaR, Sharpe Ratio, Max Drawdown). Crucially, it also finds optimized portfolios based on two criteria:</p>
+                <p>This traditional approach, using <code>/mean_variance</code> endpoint, allows you to input your desired portfolio (stocks and weights). The system then calculates various metrics for your portfolio (Variance, VaR, CVaR, Sharpe Ratio, Max Drawdown). It also finds optimized portfolios based on two criteria:</p>
                 <ul>
                     <li><strong>Return-Optimized for User's Risk:</strong> For the same risk level as your current portfolio (e.g., your portfolio's variance), it finds a new portfolio that achieves the maximum possible return.</li>
                     <li><strong>Risk-Optimized for User's Return:</strong> For the same expected return as your current portfolio, it finds a new portfolio that minimizes a specific risk metric (e.g., minimizes variance, VaR, CVaR, etc.).</li>
                 </ul>
-                <p>It generates efficient frontiers (plots showing the trade-off between risk and return/Sharpe) for Variance, VaR, CVaR, Sharpe Ratio, and Max Drawdown.</p>
+                <p>It generates efficient frontiers (plots showing the trade-off between risk and return) for Variance, VaR, CVaR, Sharpe Ratio, and Max Drawdown.</p>
             </li>
             <li><strong>Risk Optimization (Maximize Return for Target Risk):</strong>
                 <p>Accessed via the <code>/risk_opt</code> endpoint, this feature allows you to specify a target level for a chosen risk metric (e.g., "I want a maximum VaR of 0.02"). The system then optimizes a portfolio to achieve the highest possible return while staying within your specified risk tolerance.</p>
@@ -238,7 +179,7 @@
         <ul>
             <li><strong>Train/Test Split:</strong> The available historical data is split into "train" and "test" periods (e.g., 36 months for training, 3 months for testing). The optimization is performed exclusively on the "train" data to derive optimal weights.</li>
             <li><strong>Out-of-Sample Evaluation:</strong> The optimized weights are then applied to the "test" (out-of-sample) data to simulate how the portfolio would have performed in a period not seen during optimization. This provides a more realistic assessment of the strategy's effectiveness.</li>
-            <li><strong>Backtrader Integration:</strong> We utilize the <code>Backtrader</code> library to run these simulations. It creates a realistic trading environment, applying the calculated portfolio weights to the historical Open, High, Low, Close, and Volume (OHLCV) data for the test period. This generates cumulative return plots for various portfolio types (user, variance-optimized, VaR-optimized, etc.) over different test horizons (e.g., 1-month, 2-month, 3-month backtests).</li>
+            <li><strong>Backtrader Integration:</strong> We utilize the <code>Backtrader</code> library to run these simulations. This generates cumulative return plots for various portfolio types (user, variance-optimized, VaR-optimized, etc.) over different test horizons (e.g., 1-month, 2-month, 3-month backtests).</li>
         </ul>
     </section>
 
