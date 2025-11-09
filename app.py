@@ -56,7 +56,7 @@ def index():
 
     return render_template('index.html', stock_options=stocks_list, total_months=total_months)
 
-@app.route('/mean_variance', methods=['POST'])
+@app.route('/mean_variance', methods=['POST', 'GET'])
 def mean_variance():
 
     if request.method != 'POST':
@@ -64,7 +64,6 @@ def mean_variance():
 
     ctx = extract_params(request, data_directory)
     if ctx.error is not None:
-        print("CTX ERROR", ctx.error)
         return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
 
@@ -90,11 +89,13 @@ def mean_variance():
 
         pfo.calculate_frontiers(rf=rf)
         train_return_results, train_risk_results = pfo.optimize_user_portfolio(weights=weights, rf=rf)
-        if train_return_results.variance.error is not None:  # pyright: ignore[reportOptionalMemberAccess]
-            ctx.error = train_return_results.variance.error
+
+        if train_return_results.variance.error is not None:
+            ctx.error = "Please choose another portfolio and try again."
             return render_template('index.html', **ctx.model_dump(exclude_none=True))
+
         if train_risk_results.variance.error is not None:
-            ctx.error = train_return_results.variance.error
+            ctx.error = "Please choose another portfolio and try again."
             return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
         test_return_results = compute_test_metrics(pfo, test_df=test_df, train_results=train_return_results)
@@ -144,7 +145,7 @@ def mean_variance():
         return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
 
-@app.route('/risk_opt', methods=['POST'])
+@app.route('/risk_opt', methods=['POST', 'GET'])
 def risk_opt():
 
     if request.method != 'POST':
@@ -224,7 +225,7 @@ def risk_opt():
         return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
 
-@app.route('/return_opt', methods=['POST'])
+@app.route('/return_opt', methods=['POST', 'GET'])
 def return_opt():
 
     if request.method != 'POST':

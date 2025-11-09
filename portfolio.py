@@ -10,7 +10,7 @@ from utils import Portfolio, OptimizationResultsContainer
 import backtrader as bt
 from typing import List
 
-def prepare_market_returns(csv_file='nifty50_data.csv'):
+def prepare_market_returns(csv_file='data/nifty50_data.csv'):
     market_df = pd.read_csv(csv_file, parse_dates=True, index_col=0)
     if market_df.shape[1] > 1:
         market_df = market_df[['Close']]  
@@ -366,7 +366,7 @@ class portfolio():
         a_sel, R_sel, risk_sel, w_sel = candidates[idx]
         w_rf = 1 - a_sel
 
-        weights_dict = {**{k: v for k, v in zip(tangent_pf.weights.keys(), w_sel)}, "risk_free": w_rf}
+        weights_dict = {**{k: v for k, v in zip(tangent_pf.weights.keys(), w_sel)}, "R": w_rf}
 
         return Portfolio(
             weights=weights_dict,
