@@ -29,6 +29,7 @@
                 <option value="{{ s }}" {% if s==stocks[i] %} selected {% endif %}>{{ s }}</option>
                 {% endfor %}
             </select>
+            <button type="button" class="btn btn-danger remove-stock-btn">Remove</button>
         </div>
         {% endfor %} {% else %}
         <div class="stock-input-group mb-2">

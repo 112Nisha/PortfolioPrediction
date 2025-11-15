@@ -139,8 +139,8 @@ def mean_variance():
         return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
     except Exception as e:
-        raise Exception(e)
-        print(e)
+        # raise Exception(e)
+        # print(e)
         ctx.error = str(e)
         return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
@@ -183,9 +183,9 @@ def risk_opt():
             ctx.error = f"Invalid risk metric {risk_type}"
             return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
-        print(opt)
+        # print(opt)
         if opt.error is not None:
-            print("error:", opt.error)
+            # print("error:", opt.error)
             ctx.error = f"Could not optimise on target risk {risk_value}: {opt.error}"
             return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
@@ -207,7 +207,7 @@ def risk_opt():
 
         stats = {"train": train_stats, "test": test_stats, "weights": {"Optimised return": opt.weights}}
 
-        print(ctx)
+        # print(ctx)
         ctx = IndexContext(
             **ctx.model_dump(exclude_none=True),
             stats=stats, 
@@ -220,7 +220,7 @@ def risk_opt():
         return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
     except Exception as e:
-        raise Exception(e)
+        # raise Exception(e)
         ctx.error = str(e)
         return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
@@ -252,7 +252,7 @@ def return_opt():
 
         # optimise target risk and set as user weights
         train_return_results, _ = pfo.optimize_user_portfolio(ret=True, risk=False, targetR=target_return, rf=rf)
-        print(train_return_results.items())
+        # print(train_return_results.items())
 
         if all(port.error is not None for _, port in train_return_results.items()):
             bounds = (float(pfo.mu.min() + 1e-6)*100, float(pfo.mu.max() - 1e-6)*100)
@@ -292,7 +292,7 @@ def return_opt():
         return render_template('index.html', **ctx.model_dump(exclude_none=True))
 
     except Exception as e:
-        raise Exception(e)
+        # raise Exception(e)
         ctx.error = str(e)
         return render_template('index.html', **ctx.model_dump(exclude_none=True))
 

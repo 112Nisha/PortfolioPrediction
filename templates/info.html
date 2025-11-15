@@ -185,19 +185,19 @@
 
     <section class="mb-5">
         <h2 class="h3">7. Backend Technologies</h2>
-        <p>The application is built using a combination of powerful Python libraries:</p>
+        <p>The application is built using a combination of Python libraries:</p>
         <ul>
             <li><strong>Flask:</strong> A lightweight web framework used to handle web requests, routes, and render HTML templates.</li>
-            <li><strong>PyPortfolioOpt (`pypfopt`):</strong> A comprehensive library for portfolio optimization, providing efficient implementations of Mean-Variance, CVaR, and other optimization techniques, along with various return and risk model estimators.</li>
-            <li><strong>Backtrader:</strong> A powerful and flexible Python framework for backtesting trading strategies, allowing realistic simulations of portfolio performance over historical data.</li>
+            <li><strong>PyPortfolioOpt (`pypfopt`):</strong> A library for portfolio optimization, providing efficient implementations of Mean-Variance, CVaR, and other optimization techniques, along with various return and risk model estimators.</li>
+            <li><strong>Backtrader:</strong> A Python framework for backtesting trading strategies, allowing realistic simulations of portfolio performance over historical data.</li>
             <li><strong>Plotly:</strong> An interactive graphing library used to generate the efficient frontier plots and backtesting results, allowing users to hover over points for detailed information.</li>
-            <li><strong>Pandas & NumPy:</strong> Fundamental libraries for data manipulation and numerical operations, heavily used for handling financial time series data and calculations.</li>
+            <li><strong>Pandas & NumPy:</strong> Fundamental libraries for data manipulation and numerical operations, used for handling financial time series data and calculations.</li>
         </ul>
     </section>
 
     <section class="mb-5">
         <h2 class="h3">8. Data Source</h2>
-        <p>The historical stock price data used for analysis is sourced from CSV files stored locally in the <code>./data</code> directory. Each file typically contains daily Open, High, Low, Close, and Volume data for a specific stock. The application automatically reads these files to provide available stock options and compute historical metrics.</p>
+        <p>The historical stock price data used for analysis is sourced from Yahoo Finance historical price data. Each file typically contains daily Open, High, Low, Close, and Volume data for a specific stock. The application automatically reads these files to provide available stock options and compute historical metrics. For the CAPM estimate for mean return, we use NSE index as the market portfolio.</p>
     </section>
 
     <section class="mb-5">

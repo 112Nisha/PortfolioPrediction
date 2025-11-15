@@ -164,12 +164,12 @@ def run_all():
     ]
 
     results = []
-    print(f"✅ Found tickers: {stocks}\n")
+    # print(f"Found tickers: {stocks}\n")
 
     for mean_m in MEAN_METHODS:
         for cov_m in COV_METHODS:
             for (train_m, test_m) in LOOKBACK_WINDOWS:
-                print(f"➡ Running {mean_m} + {cov_m} | train={train_m} test={test_m}")
+                # print(f"Running {mean_m} + {cov_m} | train={train_m} test={test_m}")
 
                 try:
                     row = run_single_experiment(stocks, mean_m, cov_m, train_m, test_m)
@@ -186,7 +186,7 @@ def run_all():
 
     df = pd.DataFrame(results)
     df.to_csv("full_experiment_results.csv", index=False)
-    print("\n✅ Saved: full_experiment_results.csv")
+    # print("\nSaved: full_experiment_results.csv")
     print(df)
 
 if __name__ == "__main__":

@@ -33,4 +33,5 @@ function setupDynamicStocks(containerId, addBtnId, minCount, withWeights) {
 document.addEventListener("DOMContentLoaded", () => {
   setupDynamicStocks("stocks-container", "add-stock-btn", 2, true);
   setupDynamicStocks("stocks-risk-container", "add-risk-stock-btn", 2, false);
+  setupDynamicStocks("stocks-return-container", "add-return-stock-btn", 2, false);
 });
